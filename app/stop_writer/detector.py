@@ -1,22 +1,3 @@
-"""
-Stop event detection logic.
-
-Detection methods:
-1. STOPPED_AT - Vehicle status is STOPPED_AT
-2. SEQ_JUMP - Stop sequence jumped (missed stops)
-3. TIMEOUT - Trip completed (last stop)
-4. INCOMING_AT - Vehicle reported INCOMING_AT but never STOPPED_AT
-
-Time selection for SEQ_JUMP:
-- If vehicle had INCOMING_AT on the missed stop then use that timestamp (most accurate)
-- Otherwise use cached TripUpdate prediction (last_seen_arrival)
-
-Stop events with detection method 2:
-- After STOPPED_AT check preceding estimated events
-- Discard estimated events where event_time > current STOPPED_AT event_time
-- Discard estimated events where delay drops by > DELAY_DROP_THRESHOLD vs STOPPED_AT
-"""
-
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -46,8 +27,6 @@ TZ = ZoneInfo("Europe/Warsaw")
 
 
 class StopEventDetector:
-    """Detects stop events from vehicle position updates."""
-
     def __init__(
         self,
         session: Session,
@@ -62,14 +41,12 @@ class StopEventDetector:
         self._trip_updates = redis_trip_updates
         self._saved_seqs = redis_saved_seqs
 
-        # caches (in mem)
         self._trip_cache: LRUCache[str, CurrentTrip] = LRUCache(maxsize=CACHE_MAX_TRIPS)
         self._stop_cache: LRUCache[str, CurrentStop] = LRUCache(maxsize=CACHE_MAX_STOPS)
         self._stop_times_cache: LRUCache[str, dict[int, CurrentStopTime]] = LRUCache(maxsize=CACHE_MAX_STOP_TIMES)
         self._max_seq_cache: LRUCache[str, int] = LRUCache(maxsize=CACHE_MAX_SEQUENCES)
 
     def process_update(self, vp: VehiclePosition) -> list[StopEvent]:
-        """Process vehicle update and detect stop events."""
         if vp.stop_sequence is None or vp.license_plate is None:
             return []
 
@@ -93,7 +70,6 @@ class StopEventDetector:
 
         service_date = compute_service_date(vp.timestamp, stop_time.arrival_seconds)
 
-        # Detection: STOPPED_AT
         if vp.status and vp.status.value == 1:
             if not self._saved_seqs.is_saved(agency_str, vp.trip_id, service_date, vp.stop_sequence):
                 event = self._create_event(
@@ -110,7 +86,6 @@ class StopEventDetector:
                     events.append(event)
                     self._saved_seqs.mark_saved(agency_str, vp.trip_id, service_date, vp.stop_sequence)
 
-        # Detection: SEQ_JUMP, INCOMING_AT
         if prev_state and prev_state.trip_id == vp.trip_id:
             prev_seq = prev_state.current_stop_sequence
             curr_seq = vp.stop_sequence
@@ -120,7 +95,6 @@ class StopEventDetector:
                     if self._saved_seqs.is_saved(agency_str, vp.trip_id, service_date, missed_seq):
                         continue
 
-                    # prefer INCOMING_AT timestamp over TripUpdate cache
                     event_time: datetime | None = None
                     detection_method = DetectionMethod.SEQ_JUMP
 
@@ -192,16 +166,13 @@ class StopEventDetector:
                 validated.append(event)
                 continue
 
-            # Only validate estimated events that precede the STOPPED_AT
             if event.stop_sequence >= reference.stop_sequence:
                 validated.append(event)
                 continue
 
-            # estimated arrival after real arrival at a later stop
             if event.event_time > reference.event_time:
                 continue
 
-            # delay dropped significantly = unreal prediction :(
             if event.delay_seconds - reference.delay_seconds > DELAY_DROP_THRESHOLD:
                 continue
 
@@ -210,12 +181,6 @@ class StopEventDetector:
         return validated
 
     def _complete_trip(self, prev_state: VehicleState) -> list[StopEvent]:
-        """
-        Complete a trip when vehicle starts a new one.
-
-        For last stop: use FIRST seen arrival (most accurate prediction).
-        For other missed stops: prefer INCOMING_AT, then LAST seen arrival.
-        """
         events: list[StopEvent] = []
         agency_str = prev_state.agency
         trip_id = prev_state.trip_id
@@ -290,7 +255,6 @@ class StopEventDetector:
                 events.append(event)
                 self._saved_seqs.mark_saved(agency_str, trip_id, service_date, seq)
 
-        # Cleanup Redis caches for completed trip
         self._trip_updates.delete(agency_str, trip_id)
         self._vehicle_state.delete(agency_str, prev_state.license_plate)
 
@@ -307,13 +271,16 @@ class StopEventDetector:
         detection_method: DetectionMethod,
         is_estimated: bool,
     ) -> StopEvent | None:
-        """Create a StopEvent with all required data."""
         stop = self._get_stop(stop_time.stop_id)
         if not stop:
             return None
 
         static_hash = self._meta_repo.get_current_hash(vp.agency)
         if not static_hash:
+            return None
+
+        max_seq = self._get_max_stop_sequence(vp.trip_id)
+        if not max_seq:
             return None
 
         planned_time = compute_planned_time(service_date, stop_time.arrival_seconds, TZ)
@@ -338,6 +305,7 @@ class StopEventDetector:
             detection_method=detection_method,
             is_estimated=is_estimated,
             static_hash=static_hash,
+            max_stop_sequence=max_seq,
         )
 
     def _get_trip(self, trip_id: str) -> CurrentTrip | None:

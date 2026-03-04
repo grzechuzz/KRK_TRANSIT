@@ -32,6 +32,7 @@ class StopEventRepository:
                     "detection_method": event.detection_method.value,
                     "is_estimated": event.is_estimated,
                     "static_hash": event.static_hash,
+                    "max_stop_sequence": event.max_stop_sequence,
                 }
             )
 

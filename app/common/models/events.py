@@ -24,3 +24,4 @@ class StopEvent:
     detection_method: DetectionMethod
     is_estimated: bool
     static_hash: str
+    max_stop_sequence: int

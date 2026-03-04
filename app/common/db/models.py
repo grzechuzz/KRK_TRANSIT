@@ -136,4 +136,5 @@ class StopEventModel(Base):
     detection_method: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     is_estimated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     static_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    max_stop_sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=text("now()"))
