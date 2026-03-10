@@ -32,6 +32,7 @@ POLL_INTERVAL_SECONDS: int = 5
 # Stop Writer (batch persistence)
 WRITER_BATCH_SIZE: int = 100
 WRITER_FLUSH_INTERVAL: timedelta = timedelta(seconds=10)
+SUBSCRIBER_TIMEOUT: float = 1.0
 
 # Importer
 IMPORT_CYCLE_SLEEP: int = 3600  # 1 hour between GTFS static imports

@@ -1,5 +1,7 @@
 import logging
-import time
+import signal
+from threading import Event
+from typing import Any
 
 from app.common.constants import POLL_INTERVAL_SECONDS
 from app.common.feeds import get_all_feed_configs
@@ -11,6 +13,13 @@ from app.rt_poller.publisher import Publisher
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+shutdown_event = Event()
+
+
+def signal_handler(*args: Any) -> None:
+    logger.info("Shutdown signal received")
+    shutdown_event.set()
+
 
 def run_poller() -> None:
     """Run the GTFS Realtime poller loop"""
@@ -20,8 +29,10 @@ def run_poller() -> None:
 
     logger.info(f"Starting poller for {len(feeds)} feeds")
 
-    while True:
+    while not shutdown_event.is_set():
         for feed in feeds:
+            if shutdown_event.is_set():
+                break
             try:
                 vp_data = fetch_vehicle_positions(feed)
                 vp_count = publisher.publish_vehicle_positions(feed, vp_data)
@@ -34,14 +45,18 @@ def run_poller() -> None:
             except Exception as e:
                 logger.exception(f"Error polling {feed.agency.value}: {e}")
 
-        time.sleep(POLL_INTERVAL_SECONDS)
+        shutdown_event.wait(timeout=POLL_INTERVAL_SECONDS)
 
 
 def main() -> None:
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     logger.info("GTFS Realtime poller starting, waiting for GTFS Static data...")
     wait_for_gtfs_ready()
     logger.info("Starting poller")
     run_poller()
+    logger.info("Poller shutdown complete")
 
 
 if __name__ == "__main__":

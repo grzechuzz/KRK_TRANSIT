@@ -45,14 +45,14 @@ def run_writer() -> None:
         writer = BatchWriter(session)
 
         try:
-            for update in subscriber.listen():
-                if shutdown_event.is_set():
-                    break
-
-                events = detector.process_update(update)
-                if events:
-                    writer.add_many(events)
-
+            while not shutdown_event.is_set():
+                update = subscriber.get_next()
+                if update:
+                    events = detector.process_update(update)
+                    if events:
+                        writer.add_many(events)
+                else:
+                    writer.flush()
         finally:
             writer.flush()
             subscriber.close()
