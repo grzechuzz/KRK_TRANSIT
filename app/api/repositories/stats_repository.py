@@ -6,12 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.common.constants import MIN_DELAY_SECONDS
 
-_MAX_SEQ_EXPR = """COALESCE(e.max_stop_sequence, (
-                        SELECT MAX(cst.stop_sequence)
-                        FROM current_stop_times cst
-                        WHERE cst.trip_id = e.trip_id
-                    ))"""
-
 
 class StatsRepository:
     def __init__(self, session: Session):
@@ -20,7 +14,7 @@ class StatsRepository:
     def max_delay_between_stops(self, line_number: str, start_date: date, end_date: date) -> list[dict[str, Any]]:
         """Generated delay = delay at stop N+1 - delay at stop N."""
         result = self._session.execute(
-            text(f"""
+            text("""
                 WITH filtered AS (
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
@@ -28,7 +22,7 @@ class StatsRepository:
                     FROM stop_events e
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
-                    AND e.stop_sequence < {_MAX_SEQ_EXPR}
+                    AND e.stop_sequence < e.max_stop_sequence
                 ),
                 consecutive AS (
                     SELECT trip_id, service_date, stop_sequence, stop_name, headsign, line_number,
@@ -87,15 +81,15 @@ class StatsRepository:
     def max_route_delay(self, line_number: str, start_date: date, end_date: date) -> list[dict[str, Any]]:
         """Route delay = delay at second-to-last stop - delay at second stop."""
         result = self._session.execute(
-            text(f"""
+            text("""
                 WITH filtered AS (
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
-                        {_MAX_SEQ_EXPR} AS max_seq
+                        e.max_stop_sequence
                     FROM stop_events e
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
-                    AND e.stop_sequence < {_MAX_SEQ_EXPR}
+                    AND e.stop_sequence < e.max_stop_sequence
                 ),
                 trip_vehicle_check AS (
                     SELECT trip_id, service_date, COUNT(DISTINCT license_plate) AS vehicle_count
@@ -103,11 +97,11 @@ class StatsRepository:
                     GROUP BY trip_id, service_date
                 ),
                 boundary_check AS (
-                    SELECT f.trip_id, f.service_date, f.max_seq,
+                    SELECT f.trip_id, f.service_date, f.max_stop_sequence,
                         bool_or(f.stop_sequence = 2) AS has_second,
-                        bool_or(f.stop_sequence = f.max_seq - 1) AS has_penultimate
+                        bool_or(f.stop_sequence = f.max_stop_sequence - 1) AS has_penultimate
                     FROM filtered f
-                    GROUP BY f.trip_id, f.service_date, f.max_seq
+                    GROUP BY f.trip_id, f.service_date, f.max_stop_sequence
                 ),
                 valid_trips AS (
                     SELECT bc.trip_id, bc.service_date
@@ -169,7 +163,7 @@ class StatsRepository:
         Excludes estimated stops (detection_method=2)!!!
         """
         result = self._session.execute(
-            text(f"""
+            text("""
                 SELECT COUNT(*) AS total,
                     COUNT(*) FILTER (WHERE e.delay_seconds <= 120) AS on_time,
                     COUNT(*) FILTER (WHERE e.delay_seconds > 120 AND e.delay_seconds <= 360) AS slightly_delayed,
@@ -177,7 +171,7 @@ class StatsRepository:
                 FROM stop_events e
                 WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                 AND e.stop_sequence > 1
-                AND e.stop_sequence < {_MAX_SEQ_EXPR}
+                AND e.stop_sequence < e.max_stop_sequence
                 AND e.delay_seconds >= :min_delay
                 AND e.detection_method != 2
             """),
@@ -194,14 +188,14 @@ class StatsRepository:
     def trend(self, line_number: str, start_date: date, end_date: date) -> list[dict[str, Any]]:
         """Average delay per day for a line."""
         result = self._session.execute(
-            text(f"""
+            text("""
                 SELECT e.service_date AS "date",
                     ROUND(AVG(e.delay_seconds)::numeric, 1) AS avg_delay_seconds,
                     COUNT(DISTINCT (e.trip_id, e.service_date)) AS trips_count
                 FROM stop_events e
                 WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                 AND e.stop_sequence > 1
-                AND e.stop_sequence < {_MAX_SEQ_EXPR}
+                AND e.stop_sequence < e.max_stop_sequence
                 AND e.delay_seconds >= :min_delay
                 GROUP BY e.service_date
                 ORDER BY e.service_date

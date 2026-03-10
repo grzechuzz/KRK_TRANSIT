@@ -28,4 +28,3 @@ class DetectionMethod(IntEnum):
     STOPPED_AT = 1  # Direct STOPPED_AT status from VehiclePositions
     SEQ_JUMP = 2  # Detected via stop_sequence jump, time from TripUpdates
     TIMEOUT = 3  # Using cached TripUpdates time (vehicle disappeared)
-    INCOMING_AT = 4  # Fallback - vehicle reported INCOMING_AT but never STOPPED_AT
