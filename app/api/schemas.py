@@ -22,7 +22,7 @@ EndDateQuery = Annotated[
 LineNumberPath = Annotated[
     str,
     Path(
-        description="Line number, e.g. '194', '424', '503'",
+        description="Line number, e.g. 194, 424, 503",
         min_length=1,
         max_length=5,
         pattern=r"^[a-zA-Z0-9]{1,5}$",
