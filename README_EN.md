@@ -4,7 +4,7 @@ REST API providing real-time bus delay statistics (MPK, Mobilis) in Kraków. It 
 
 The API enables identification of route segments generating the highest delays and monitoring of long-term delay trends for each line.
 
-It also exposes endpoints with live vehicle positions and route geometry. This is data that ZTP publishes in Protocol Buffers format. The API combines it with static data and serves it in JSON format.
+It also exposes endpoints with live vehicle positions and route geometry.
 
 **API:** https://api.krktransit.pl/docs
 
@@ -30,7 +30,7 @@ Documentation: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
 
 ## Architecture
 
-The system consists of four independent services.
+The system consists of four services.
 
 | Service | Role |
 |---|---|
@@ -47,7 +47,6 @@ The core logic (in stop_writer/detector.py) analyzes data from VehiclePositions.
 |---|---|---|
 | `STOPPED_AT` | Vehicle reports `STOPPED_AT` status | GPS timestamp |
 | `SEQ_JUMP` | Stop sequence jump (skipped stops) | TripUpdates prediction cache |
-| `INCOMING_AT` | Vehicle reported `INCOMING_AT` but never `STOPPED_AT` | GPS timestamp from `INCOMING_AT` |
 | `TIMEOUT` | Vehicle started a new trip (completing the previous one) | TripUpdates prediction cache for the previous trip |
 
 Estimated events are validated against the next confirmed `STOPPED_AT`. Events with impossible timestamps or unrealistic delay drops are discarded.
