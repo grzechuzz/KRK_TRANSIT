@@ -6,7 +6,7 @@ REST API dostarczające statystyki opóźnień autobusów (MPK, Mobilis) w Krako
 
 API umożliwia m.in. identyfikację odcinków na których powstają największe opóźnienia oraz monitorowanie długofalowych trendów opóźnień dla każdej linii.  
 
-Dostępne są również endpointy z pozycjami pojazdów na żywo oraz geometrią tras. Są to dane, które ZTP publikuje w formacie Protocol Buffers. API łączy je z danymi statycznymi i udostępnia w formacie JSON.
+Dostępne są również endpointy z pozycjami pojazdów na żywo oraz geometrią tras.
 
 **API:** https://api.krktransit.pl/docs
 
@@ -32,7 +32,7 @@ Dokumentacja: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
 
 ## Architektura
 
-System składa się z czterech niezależnych serwisów.
+System składa się z czterech serwisów.
 
 | Serwis | Rola |
 |---|---|
@@ -49,7 +49,6 @@ Główna logika (w stop_writer/detector.py) analizuje dane z VehiclePositions.pb
 |---|---|---|
 | `STOPPED_AT` | Pojazd wysyła status `STOPPED_AT` | Timestamp GPS |
 | `SEQ_JUMP` | Skok w sekwencji przystanków (pominięte przystanki) | Cache predykcji z TripUpdates |
-| `INCOMING_AT` | Pojazd wysłał `INCOMING_AT`, ale nigdy `STOPPED_AT` | Timestamp GPS z `INCOMING_AT` |
 | `TIMEOUT` | Pojazd rozpoczął nowy kurs (zamykanie poprzedniego) | Cache predykcji z TripUpdates dla poprzedniego kursu |
 
 Zdarzenia estymowane są walidowane względem następnego potwierdzonego `STOPPED_AT`. Zdarzenia z niemożliwymi timestampami lub nierealistycznymi spadkami opóźnień są odrzucane.
