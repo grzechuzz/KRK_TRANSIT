@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.controllers.health_controller import router as health_router
 from app.api.controllers.shapes_controller import router as shapes_router
 from app.api.controllers.stats_controller import router as stats_router
+from app.api.controllers.trips_controller import router as trips_router
 from app.api.controllers.vehicles_controller import router as vehicles_router
 from app.api.exceptions import setup_exception_handlers
 from app.api.middleware import setup_middleware
@@ -31,9 +33,11 @@ def create_app() -> FastAPI:
     setup_middleware(app)
     setup_exception_handlers(app)
 
+    app.include_router(health_router)
     app.include_router(stats_router, prefix="/v1")
     app.include_router(vehicles_router, prefix="/v1")
     app.include_router(shapes_router, prefix="/v1")
+    app.include_router(trips_router, prefix="/v1")
 
     return app
 
