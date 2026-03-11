@@ -31,14 +31,14 @@ services:
       gtfs_db:
         condition: service_healthy
     secrets:
-      - db_password
+      - db_password_importer
       - redis_password
     environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PASSWORD_FILE: /run/secrets/db_password_importer
       DB_HOST: gtfs_db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: ${IMPORTER_USER}
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
@@ -59,14 +59,14 @@ services:
       gtfs_importer:
         condition: service_started
     secrets:
-      - db_password
+      - db_password_api
       - redis_password
     environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PASSWORD_FILE: /run/secrets/db_password_api
       DB_HOST: gtfs_db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: ${API_READER_USER}
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
@@ -85,14 +85,14 @@ services:
       gtfs_importer:
         condition: service_started
     secrets:
-      - db_password
+      - db_password_writer
       - redis_password
     environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PASSWORD_FILE: /run/secrets/db_password_writer
       DB_HOST: gtfs_db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: ${WRITER_USER}
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
@@ -107,18 +107,23 @@ services:
       gtfs_db:
         condition: service_healthy
     secrets:
-      - db_password
+      - db_password_api
       - redis_password
     environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PASSWORD_FILE: /run/secrets/db_password_api
       DB_HOST: gtfs_db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: ${API_READER_USER}
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   caddy:
     image: caddy:2-alpine
@@ -133,11 +138,18 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-localhost}
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 secrets:
   db_password:
     file: ../secrets/db_password
+  db_password_api:
+    file: ../secrets/db_password_api
+  db_password_writer:
+    file: ../secrets/db_password_writer
+  db_password_importer:
+    file: ../secrets/db_password_importer
   redis_password:
     file: ../secrets/redis_password
 
