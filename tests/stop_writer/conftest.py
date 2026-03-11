@@ -49,15 +49,16 @@ def make_vehicle_state(
     )
 
 
-def make_trip(trip_id: str = "trip_1", route_short_name: str = "152") -> CurrentTrip:
+def make_trip(trip_id: str = "trip_1", route_short_name: str = "152", agency_id: str = "mpk") -> CurrentTrip:
     route = CurrentRoute()
     route.route_id = "route_1"
-    route.agency_id = "mpk"
+    route.agency_id = agency_id
     route.route_short_name = route_short_name
 
     trip = CurrentTrip()
     trip.trip_id = trip_id
     trip.route_id = "route_1"
+    trip.agency_id = agency_id
     trip.service_id = "service_1"
     trip.direction_id = 0
     trip.headsign = "Dworzec Główny"
@@ -66,9 +67,10 @@ def make_trip(trip_id: str = "trip_1", route_short_name: str = "152") -> Current
     return trip
 
 
-def make_stop(stop_id: str = "stop_5", stop_name: str = "Rondo Mogilskie") -> CurrentStop:
+def make_stop(stop_id: str = "stop_5", stop_name: str = "Rondo Mogilskie", agency_id: str = "mpk") -> CurrentStop:
     stop = CurrentStop()
     stop.stop_id = stop_id
+    stop.agency_id = agency_id
     stop.stop_name = stop_name
     stop.stop_code = None
     stop.stop_desc = "01"
@@ -82,11 +84,13 @@ def make_stop_time(
     stop_sequence: int = 5,
     stop_id: str | None = None,
     arrival_seconds: int = 43200,
+    agency_id: str = "mpk",
 ) -> CurrentStopTime:
     st = CurrentStopTime()
     st.trip_id = trip_id
     st.stop_sequence = stop_sequence
     st.stop_id = stop_id or f"stop_{stop_sequence}"
+    st.agency_id = agency_id
     st.arrival_seconds = arrival_seconds
     st.departure_seconds = arrival_seconds + 30
     return st
