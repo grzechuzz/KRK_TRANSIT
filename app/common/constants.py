@@ -57,4 +57,4 @@ VEHICLES_CACHE_TTL: int = 2  # seconds - live vehicle positions cache
 MAX_DATE_RANGE_DAYS: int = 365
 
 # User agent
-USER_AGENT: str = "MPK-Krakow-Stats/0.1"
+USER_AGENT: str = "KRKTransit/1.0"
