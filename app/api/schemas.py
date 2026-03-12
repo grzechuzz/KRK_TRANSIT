@@ -35,7 +35,7 @@ ShapeIdPath = Annotated[
         description="Shape ID from /vehicles/positions endpoint",
         min_length=1,
         max_length=50,
-        pattern=r"^[a-zA-Z0-9_-]{1,50}$",
+        pattern=r"^[a-zA-Z0-9_:\-]{1,50}$",
     ),
 ]
 
@@ -45,7 +45,7 @@ TripIdPath = Annotated[
         description="Trip ID from /vehicles/positions endpoint",
         min_length=1,
         max_length=50,
-        pattern=r"^[a-zA-Z0-9_-]{1,50}$",
+        pattern=r"^[a-zA-Z0-9_:\-]{1,50}$",
     ),
 ]
 
