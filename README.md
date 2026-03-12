@@ -1,12 +1,14 @@
 ### [🇬🇧 English Version](README_EN.md)
 
-# KRKtransit - statystyki opóźnień autobusów komunikacji miejskiej w Krakowie
+# KRKtransit - statystyki opóźnień pojazdów komunikacji miejskiej w Krakowie
 
-REST API dostarczające statystyki opóźnień autobusów (MPK, Mobilis) w Krakowie w czasie rzeczywistym. Bazuje ono na danych dostarczanych przez ZTP w Krakowie, udostępnionych zgodnie ze specyfikacją GTFS (Static & Realtime). 
+REST API dostarczające statystyki opóźnień pojazdów komunikacji miejskiej (MPK, Mobilis) w Krakowie w czasie rzeczywistym. Bazuje ono na danych dostarczanych przez ZTP w Krakowie, udostępnionych zgodnie ze specyfikacją GTFS (Static & Realtime). 
 
 API umożliwia m.in. identyfikację odcinków na których powstają największe opóźnienia oraz monitorowanie długofalowych trendów opóźnień dla każdej linii.  
 
 Dostępne są również endpointy z pozycjami pojazdów na żywo oraz geometrią tras.
+
+Kod można uruchomić lokalnie, co pozwala na samodzielne archiwizowanie danych o zrealizowanych kursach i budowanie własnej, historycznej bazy opóźnień.
 
 **API:** https://api.krktransit.pl/docs
 
@@ -27,6 +29,8 @@ Aby uniknąć fałszowania wyników przez nierealistyczne opóźnienia, statysty
 | `GET /v1/lines/{line}/stats/trend` | Dzienny trend średniego opóźnienia |
 | `GET /v1/vehicles/positions` | Pozycje GPS wszystkich aktywnych pojazdów na żywo |
 | `GET /v1/shapes/{shape_id}` | Geometria trasy (uporządkowane punkty GPS) |
+| `GET /v1/trips/{trip_id}/stops` | Przystanki na danej trasie |
+| `GET /health` | Health check |
 
 Dokumentacja: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
 
@@ -36,14 +40,14 @@ System składa się z czterech serwisów.
 
 | Serwis | Rola |
 |---|---|
-| **Importer** | Pobiera i ładuje dane GTFS Static (trasy, przystanki, rozkłady, kształty tras) dla obu przewoźników. Wykrywa zmiany w plikach poprzez hashowanie SHA-256. Uruchamia migracje przy starcie. |
-| **RT Poller** | Pobiera feedy `VehiclePositions.pb` i `TripUpdates.pb` co 5 sekund. Publikuje przetworzone pozycje pojazdów na Redis Pub/Sub i cache'uje predykcje z trip updates. |
-| **Stop Writer** | Nasłuchuje pozycji pojazdów z Redis Pub/Sub. Wykrywa zdarzenia na przystankach czterema metodami (patrz niżej). Zapisuje zdarzenia do bazy danych. |
+| **Importer** | Pobiera i ładuje dane GTFS Static (trasy, przystanki, rozkłady, kształty tras) dla obu przewoźników. Wykrywa zmiany w plikach poprzez hashowanie SHA-256. |
+| **RT Poller** | Pobiera dane z `VehiclePositions.pb` i `TripUpdates.pb` co 5 sekund. Publikuje przetworzone pozycje pojazdów na Redis Pub/Sub i cache'uje predykcje z trip updates. |
+| **Stop Writer** | Nasłuchuje pozycji pojazdów z Redis Pub/Sub. Wykrywa zdarzenia na przystankach trzema metodami (patrz niżej). Zapisuje zdarzenia do bazy danych. |
 | **API** | Udostępnia statystyki opóźnień, dane punktualności, trendy dzienne, pozycje pojazdów na żywo i geometrię tras. Cache'uje odpowiedzi dotyczące statysyk w Redisie. |
 
 ## Detekcja zdarzeń na przystankach
 
-Główna logika (w stop_writer/detector.py) analizuje dane z VehiclePositions.pb oraz TripUpdates.pb i określa kiedy pojazd odwiedził przystanek.
+Główna logika (w `stop_writer/detector.py`) analizuje dane z VehiclePositions.pb oraz TripUpdates.pb i określa kiedy pojazd odwiedził przystanek.
 
 | Metoda | Trigger | Źródło czasu |
 |---|---|---|
@@ -53,7 +57,7 @@ Główna logika (w stop_writer/detector.py) analizuje dane z VehiclePositions.pb
 
 Zdarzenia estymowane są walidowane względem następnego potwierdzonego `STOPPED_AT`. Zdarzenia z niemożliwymi timestampami lub nierealistycznymi spadkami opóźnień są odrzucane.
 
-Endpointy udostepniające maksymalne opóźnienie pomiędzy dwoma przystankami oraz statystyki punktualności według określonych progów wykluczają zdarzenia z metodą `SEQ_JUMP`, ponieważ estymowane czasy mogą zawyżać wyniki na poziomie pojedynczych przystanków. 
+Ze względu na to, że metody estymacji dla pominiętych przystanków (`SEQ_JUMP`, `TIMEOUT`) nie dają jeszcze w pełni satysfakcjonujących rezultatów, udostępniamy w API jedynie zdarzenia oparte na STOPPED_AT (`detection_method = 1`), aby zagwarantować poprawność danych.
 
 ## Użyte technologie
 - Python 3.13
@@ -71,15 +75,35 @@ Endpointy udostepniające maksymalne opóźnienie pomiędzy dwoma przystankami o
 
 1. Sklonuj repozytorium:
 ```bash
-git clone https://github.com/grzechuzz/KRK_TRANSIT_STATS.git
+git clone https://github.com/grzechuzz/KRK_TRANSIT.git
 ```
 
 2. Stwórz potrzebne pliki:
-   - `secrets/db_password` — hasło PostgreSQL
-   - `secrets/redis_password` — hasło Redis
-   - `redis/users.acl` — plik ACL Redis
-   - `docker/.env` — zmienne `POSTGRES_DB`, `POSTGRES_USER`, `REDIS_USER`
+   
+   - `secrets/db_password` (admin bazy)
+   - `secrets/db_password_api` (tylko odczyt dla API)
+   - `secrets/db_password_writer` (zapis danych RT)
+   - `secrets/db_password_importer` (zapis danych GTFS)
+   - `secrets/redis_password`
+   - `redis/users.acl`
+   
+  Przykładowy `redis/users.acl`
+  
+   ```
+   user mpk_redis on >CHANGE_THAT_PASSWORD ~* &* +@read +@write +@string +@hash +@set +@list +@pubsub +@keyspace +@connection -@dangerous
+   user default off
+   ```
 
+   Utwórz plik `docker/.env` i uzupełnij zmienne:
+   ```env
+   POSTGRES_DB=
+   POSTGRES_USER=
+   IMPORTER_USER=
+   WRITER_USER=
+   API_READER_USER=
+   REDIS_USER=
+   ```
+   
 3. Uruchom kontenery:
 ```bash
 cd docker
