@@ -1,6 +1,6 @@
 ### [🇬🇧 English Version](README_EN.md)
 
-# KRKtransit - statystyki opóźnień pojazdów komunikacji miejskiej w Krakowie
+# KRKtransit - mapa na żywo oraz statystyki opóźnień pojazdów komunikacji miejskiej w Krakowie
 
 REST API dostarczające statystyki opóźnień pojazdów komunikacji miejskiej (MPK, Mobilis) w Krakowie w czasie rzeczywistym. Bazuje ono na danych dostarczanych przez ZTP w Krakowie, udostępnionych zgodnie ze specyfikacją GTFS (Static & Realtime). 
 
@@ -9,6 +9,8 @@ API umożliwia m.in. identyfikację odcinków na których powstają największe 
 Dostępne są również endpointy z pozycjami pojazdów na żywo oraz geometrią tras.
 
 Kod można uruchomić lokalnie, co pozwala na samodzielne archiwizowanie danych o zrealizowanych kursach i budowanie własnej, historycznej bazy opóźnień.
+
+**Strona (Frontend):** https://krktransit.pl/
 
 **API:** https://api.krktransit.pl/docs
 
@@ -25,7 +27,7 @@ Aby uniknąć fałszowania wyników przez nierealistyczne opóźnienia, statysty
 |---|---|
 | `GET /v1/lines/{line}/stats/max-delay` | Top 10 przyrostów opóźnień między kolejnymi przystankami |
 | `GET /v1/lines/{line}/stats/route-delay` | Top 10 opóźnień wygenerowanych na całej trasie |
-| `GET /v1/lines/{line}/stats/punctuality` | Statystyki punktualności według progów opoźnień |
+| `GET /v1/lines/{line}/stats/punctuality` | Statystyki punktualności według progów opóźnień |
 | `GET /v1/lines/{line}/stats/trend` | Dzienny trend średniego opóźnienia |
 | `GET /v1/vehicles/positions` | Pozycje GPS wszystkich aktywnych pojazdów na żywo |
 | `GET /v1/shapes/{shape_id}` | Geometria trasy (uporządkowane punkty GPS) |
@@ -55,9 +57,7 @@ Główna logika (w `stop_writer/detector.py`) analizuje dane z VehiclePositions.
 | `SEQ_JUMP` | Skok w sekwencji przystanków (pominięte przystanki) | Cache predykcji z TripUpdates |
 | `TIMEOUT` | Pojazd rozpoczął nowy kurs (zamykanie poprzedniego) | Cache predykcji z TripUpdates dla poprzedniego kursu |
 
-Zdarzenia estymowane są walidowane względem następnego potwierdzonego `STOPPED_AT`. Zdarzenia z niemożliwymi timestampami lub nierealistycznymi spadkami opóźnień są odrzucane.
-
-Ze względu na to, że metody estymacji dla pominiętych przystanków (`SEQ_JUMP`, `TIMEOUT`) nie dają jeszcze w pełni satysfakcjonujących rezultatów, udostępniamy w API jedynie zdarzenia oparte na STOPPED_AT (`detection_method = 1`), aby zagwarantować poprawność danych.
+Ze względu na to, że metody estymacji dla pominiętych przystanków (`SEQ_JUMP`, `TIMEOUT`) nie dają jeszcze w pełni satysfakcjonujących rezultatów, udostępniamy w API jedynie zdarzenia oparte na STOPPED_AT, aby zagwarantować poprawność danych.
 
 ## Użyte technologie
 - Python 3.13
@@ -112,7 +112,7 @@ docker compose up -d --build
 
 4. Otwórz dokumentację API:
 ```
-http://localhost/docs
+http://localhost:8000/docs
 ```
 
 ## Testy i linter
