@@ -1,12 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.api import schemas_docs as docs
 from app.api.db import DbSession
+from app.api.middleware import limiter
 from app.api.schemas import EndDateQuery, IncludeEstimatedQuery, LineNumberPath, StartDateQuery
 from app.api.services.stats_service import StatsService
 from app.api.validation import validate_date_range
+from app.common.constants import RATE_LIMIT_STATS
 
 router = APIRouter(prefix="/lines", tags=["statistics"])
 
@@ -25,7 +27,9 @@ Stats = Annotated[StatsService, Depends(_get_service)]
     response_model=docs.MaxDelayBetweenStopsResponse,
     summary="Top 10 delays between consecutive stops",
 )
+@limiter.limit(RATE_LIMIT_STATS)
 def get_max_delay_between_stops(
+    request: Request,
     line_number: LineNumberPath,
     service: Stats,
     start_date: StartDateQuery,
@@ -56,7 +60,9 @@ def get_max_delay_between_stops(
     response_model=docs.RouteDelayResponse,
     summary="Top 10 delays generated across entire route",
 )
+@limiter.limit(RATE_LIMIT_STATS)
 def get_route_delay(
+    request: Request,
     line_number: LineNumberPath,
     service: Stats,
     start_date: StartDateQuery,
@@ -88,7 +94,9 @@ def get_route_delay(
     response_model=docs.PunctualityResponse,
     summary="Per-stop punctuality breakdown",
 )
+@limiter.limit(RATE_LIMIT_STATS)
 def get_punctuality(
+    request: Request,
     line_number: LineNumberPath,
     service: Stats,
     start_date: StartDateQuery,
@@ -124,7 +132,9 @@ def get_punctuality(
     response_model=docs.TrendResponse,
     summary="Daily average delay trend",
 )
+@limiter.limit(RATE_LIMIT_STATS)
 def get_trend(
+    request: Request,
     line_number: LineNumberPath,
     service: Stats,
     start_date: StartDateQuery,

@@ -53,7 +53,11 @@ ESTIMATED_VALID_FROM: str = "2026-03-19"  # estimated events before this date la
 DEFAULT_TTL: int = 90
 LONG_TTL: int = 600
 LONG_TTL_THRESHOLD_DAYS: int = 7
-VEHICLES_CACHE_TTL: int = 2  # seconds - live vehicle positions cache
+VEHICLES_CACHE_TTL: int = 3  # seconds - live vehicle positions cache
+
+# API rate limits (per IP, per minute)
+RATE_LIMIT_DEFAULT: str = "80/minute"
+RATE_LIMIT_STATS: str = "40/minute"
 
 # API dates filter
 MAX_DATE_RANGE_DAYS: int = 365

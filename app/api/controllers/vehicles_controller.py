@@ -1,10 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.api import schemas_docs as docs
 from app.api.db import DbSession
+from app.api.middleware import limiter
 from app.api.services.vehicles_service import VehiclesService
+from app.common.constants import RATE_LIMIT_DEFAULT
 
 router = APIRouter(prefix="/vehicles", tags=["live"])
 
@@ -19,7 +21,8 @@ Vehicles = Annotated[VehiclesService, Depends(_get_service)]
 
 
 @router.get("/positions", response_model=docs.LiveVehicleResponse, summary="Live vehicle positions")
-def get_positions(service: Vehicles) -> Response:
+@limiter.limit(RATE_LIMIT_DEFAULT)
+def get_positions(request: Request, service: Vehicles) -> Response:
     """
     Returns current GPS coordinates for all active vehicles (MPK + Mobilis).
 

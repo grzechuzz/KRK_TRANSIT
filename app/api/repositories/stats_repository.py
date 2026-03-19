@@ -8,10 +8,10 @@ from app.common.constants import ESTIMATED_VALID_FROM, MIN_DELAY_SECONDS
 
 # When including estimated events, only trust them from the date cross-batch validation was deployed.
 # STOPPED_AT events are always included regardless of date.
-_ESTIMATED_FILTER = f"AND (e.detection_method = 1 OR e.service_date >= '{ESTIMATED_VALID_FROM}')"
+_ESTIMATED_FILTER = "AND (e.detection_method = 1 OR e.service_date >= :estimated_valid_from)"
 _ESTIMATED_PREV_FILTER = (
-    f"AND (detection_method = 1 OR service_date >= '{ESTIMATED_VALID_FROM}')"
-    f" AND (prev_detection_method = 1 OR service_date >= '{ESTIMATED_VALID_FROM}')"
+    "AND (detection_method = 1 OR service_date >= :estimated_valid_from)"
+    " AND (prev_detection_method = 1 OR service_date >= :estimated_valid_from)"
 )
 
 
@@ -76,6 +76,7 @@ class StatsRepository:
                 "start_date": start_date,
                 "end_date": end_date,
                 "min_delay": MIN_DELAY_SECONDS,
+                "estimated_valid_from": ESTIMATED_VALID_FROM,
             },
         )
         return [dict(r) for r in result.mappings().all()]
@@ -173,6 +174,7 @@ class StatsRepository:
                 "start_date": start_date,
                 "end_date": end_date,
                 "min_delay": MIN_DELAY_SECONDS,
+                "estimated_valid_from": ESTIMATED_VALID_FROM,
             },
         )
         return [dict(r) for r in result.mappings().all()]
@@ -206,6 +208,7 @@ class StatsRepository:
                 "start_date": start_date,
                 "end_date": end_date,
                 "min_delay": MIN_DELAY_SECONDS,
+                "estimated_valid_from": ESTIMATED_VALID_FROM,
             },
         )
         row = result.mappings().first()
@@ -236,6 +239,7 @@ class StatsRepository:
                 "start_date": start_date,
                 "end_date": end_date,
                 "min_delay": MIN_DELAY_SECONDS,
+                "estimated_valid_from": ESTIMATED_VALID_FROM,
             },
         )
         return [dict(r) for r in result.mappings().all()]
