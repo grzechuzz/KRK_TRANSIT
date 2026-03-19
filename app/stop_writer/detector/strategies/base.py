@@ -16,6 +16,7 @@ class DetectionContext:
     service_date: date
     trip: CurrentTrip
     stop_time: CurrentStopTime
+    stop_sequence: int
 
 
 class DetectionStrategy(Protocol):

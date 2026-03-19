@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 from app.common.gtfs.timeparse import compute_service_date
@@ -72,15 +74,16 @@ class StopEventDetector:
             service_date=service_date,
             trip=trip,
             stop_time=stop_time,
+            stop_sequence=vp.stop_sequence,
         )
 
         # Run all strategies, collect raw events
-        raw_events: list[StopEvent] = []
+        detected: list[StopEvent] = []
         for strategy in self._strategies:
-            raw_events.extend(strategy.detect(ctx))
+            detected.extend(strategy.detect(ctx))
 
         # Validate + persist (single place for all side-effects)
-        detection_events = self._persist_events(raw_events, agency_str, vp.trip_id, service_date)
+        detection_events = self._persist_events(detected, agency_str, vp.trip_id, service_date)
 
         # In-batch validation when STOPPED_AT + estimated events in same update
         if vp.status and vp.status.value == 1 and len(detection_events) > 1:
@@ -91,7 +94,7 @@ class StopEventDetector:
             agency=agency_str,
             license_plate=vp.license_plate,
             trip_id=vp.trip_id,
-            current_stop_sequence=vp.stop_sequence,
+            current_stop_sequence=ctx.stop_sequence,
             last_timestamp=vp.timestamp,
         )
         self._vehicle_state.save(new_state)
@@ -103,7 +106,7 @@ class StopEventDetector:
         raw_events: list[StopEvent],
         agency_str: str,
         trip_id: str,
-        service_date=None,
+        service_date: date | None = None,
     ) -> list[StopEvent]:
         validated: list[StopEvent] = []
         for event in raw_events:

@@ -25,7 +25,7 @@ class SeqJumpStrategy:
             return []
 
         prev_seq = ctx.prev_state.current_stop_sequence
-        curr_seq = ctx.vp.stop_sequence
+        curr_seq = ctx.stop_sequence
 
         if curr_seq <= prev_seq:
             return []

@@ -14,12 +14,12 @@ class StoppedAtStrategy:
         if not (ctx.vp.status and ctx.vp.status.value == 1):
             return []
 
-        if self._saved_seqs.is_saved(ctx.agency_str, ctx.vp.trip_id, ctx.service_date, ctx.vp.stop_sequence):
+        if self._saved_seqs.is_saved(ctx.agency_str, ctx.vp.trip_id, ctx.service_date, ctx.stop_sequence):
             return []
 
         event = self._factory.create(
             vp=ctx.vp,
-            stop_sequence=ctx.vp.stop_sequence,
+            stop_sequence=ctx.stop_sequence,
             event_time=ctx.vp.timestamp,
             service_date=ctx.service_date,
             trip=ctx.trip,

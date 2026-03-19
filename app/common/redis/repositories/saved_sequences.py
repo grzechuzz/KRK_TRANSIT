@@ -34,7 +34,7 @@ class SavedSequencesRepository:
     def get_saved_data(
         self, agency: str, trip_id: str, service_date: date, stop_sequence: int
     ) -> tuple[int, datetime] | None:
-        raw = self._redis.hget(self._key(agency, trip_id, service_date), str(stop_sequence))
+        raw: bytes | None = self._redis.hget(self._key(agency, trip_id, service_date), str(stop_sequence))  # type: ignore[assignment]
         if not raw:
             return None
         data = json.loads(raw)
