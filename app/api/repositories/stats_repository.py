@@ -4,17 +4,32 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.common.constants import MIN_DELAY_SECONDS
+from app.common.constants import ESTIMATED_VALID_FROM, MIN_DELAY_SECONDS
+
+# When including estimated events, only trust them from the date cross-batch validation was deployed.
+# STOPPED_AT events are always included regardless of date.
+_ESTIMATED_FILTER = f"AND (e.detection_method = 1 OR e.service_date >= '{ESTIMATED_VALID_FROM}')"
+_ESTIMATED_PREV_FILTER = (
+    f"AND (detection_method = 1 OR service_date >= '{ESTIMATED_VALID_FROM}')"
+    f" AND (prev_detection_method = 1 OR service_date >= '{ESTIMATED_VALID_FROM}')"
+)
 
 
 class StatsRepository:
     def __init__(self, session: Session):
         self._session = session
 
-    def max_delay_between_stops(self, line_number: str, start_date: date, end_date: date) -> list[dict[str, Any]]:
+    def max_delay_between_stops(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> list[dict[str, Any]]:
         """Generated delay = delay at stop N+1 - delay at stop N."""
+        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+        prev_det_filter = (
+            _ESTIMATED_PREV_FILTER if include_estimated else ("AND detection_method = 1 AND prev_detection_method = 1")
+        )
+
         result = self._session.execute(
-            text("""
+            text(f"""
                 WITH filtered AS (
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
@@ -23,6 +38,7 @@ class StatsRepository:
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
                     AND e.stop_sequence < e.max_stop_sequence
+                    {det_filter}
                 ),
                 consecutive AS (
                     SELECT trip_id, service_date, stop_sequence, stop_name, headsign, line_number,
@@ -50,7 +66,7 @@ class StatsRepository:
                 WHERE generated_delay IS NOT NULL AND prev_delay >= :min_delay
                 AND license_plate = prev_license_plate
                 AND stop_sequence = prev_stop_sequence + 1
-                AND detection_method != 2 AND prev_detection_method != 2
+                {prev_det_filter}
                 ORDER BY generated_delay DESC
                 LIMIT 10
             """),
@@ -78,10 +94,14 @@ class StatsRepository:
         )
         return result.scalar() or 0
 
-    def max_route_delay(self, line_number: str, start_date: date, end_date: date) -> list[dict[str, Any]]:
-        """Route delay = delay at second-to-last stop - delay at second stop. Uses only STOPPED_AT events."""
+    def max_route_delay(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> list[dict[str, Any]]:
+        """Route delay = delay at second-to-last stop - delay at second stop."""
+        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+
         result = self._session.execute(
-            text("""
+            text(f"""
                 WITH filtered AS (
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
@@ -90,7 +110,7 @@ class StatsRepository:
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
                     AND e.stop_sequence < e.max_stop_sequence
-                    AND e.detection_method = 1
+                    {det_filter}
                 ),
                 trip_vehicle_check AS (
                     SELECT trip_id, service_date, COUNT(DISTINCT license_plate) AS vehicle_count
@@ -154,17 +174,19 @@ class StatsRepository:
         )
         return [dict(r) for r in result.mappings().all()]
 
-    def punctuality(self, line_number: str, start_date: date, end_date: date) -> dict[str, Any]:
+    def punctuality(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> dict[str, Any]:
         """
         For each stop in [2, n-1] range, classify individually:
         - on_time: delay <= 120s
         - slightly_delayed: 120s < delay <= 360s
         - delayed: delay > 360s
-
-        Excludes estimated stops (detection_method != 1)
         """
+        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+
         result = self._session.execute(
-            text("""
+            text(f"""
                 SELECT COUNT(*) AS total,
                     COUNT(*) FILTER (WHERE e.delay_seconds <= 120) AS on_time,
                     COUNT(*) FILTER (WHERE e.delay_seconds > 120 AND e.delay_seconds <= 360) AS slightly_delayed,
@@ -174,7 +196,7 @@ class StatsRepository:
                 AND e.stop_sequence > 1
                 AND e.stop_sequence < e.max_stop_sequence
                 AND e.delay_seconds >= :min_delay
-                AND e.detection_method = 1
+                {det_filter}
             """),
             {
                 "line_number": line_number,
@@ -186,10 +208,14 @@ class StatsRepository:
         row = result.mappings().first()
         return dict(row) if row else {"total": 0, "on_time": 0, "slightly_delayed": 0, "delayed": 0}
 
-    def trend(self, line_number: str, start_date: date, end_date: date) -> list[dict[str, Any]]:
+    def trend(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> list[dict[str, Any]]:
         """Average delay per day for a line."""
+        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+
         result = self._session.execute(
-            text("""
+            text(f"""
                 SELECT e.service_date AS "date",
                     ROUND(AVG(e.delay_seconds)::numeric, 1) AS avg_delay_seconds,
                     COUNT(DISTINCT (e.trip_id, e.service_date)) AS trips_count
@@ -198,6 +224,7 @@ class StatsRepository:
                 AND e.stop_sequence > 1
                 AND e.stop_sequence < e.max_stop_sequence
                 AND e.delay_seconds >= :min_delay
+                {det_filter}
                 GROUP BY e.service_date
                 ORDER BY e.service_date
             """),

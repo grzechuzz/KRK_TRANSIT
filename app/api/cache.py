@@ -21,24 +21,36 @@ def _ttl(start_date: date, end_date: date) -> int:
     return LONG_TTL if span >= LONG_TTL_THRESHOLD_DAYS else DEFAULT_TTL
 
 
-def _key(endpoint: str, line_number: str, start_date: date, end_date: date) -> str:
-    return f"stats:{endpoint}:{line_number}:{start_date}:{end_date}"
+def _key(endpoint: str, line_number: str, start_date: date, end_date: date, include_estimated: bool = False) -> str:
+    suffix = ":est" if include_estimated else ""
+    return f"stats:{endpoint}:{line_number}:{start_date}:{end_date}{suffix}"
 
 
-def get_cached(endpoint: str, line_number: str, start_date: date, end_date: date) -> bytes | None:
+def get_cached(
+    endpoint: str, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+) -> bytes | None:
     try:
         client = get_client()
-        return client.get(_key(endpoint, line_number, start_date, end_date))  # type: ignore
+        return client.get(_key(endpoint, line_number, start_date, end_date, include_estimated))  # type: ignore
     except redis.RedisError:
         logger.warning("Redis read failed for stats cache", exc_info=True)
         return None
 
 
-def set_cached(endpoint: str, line_number: str, start_date: date, end_date: date, data: msgspec.Struct) -> bytes:
+def set_cached(
+    endpoint: str,
+    line_number: str,
+    start_date: date,
+    end_date: date,
+    data: msgspec.Struct,
+    include_estimated: bool = False,
+) -> bytes:
     raw = msgspec.json.encode(data)
     try:
         client = get_client()
-        client.setex(_key(endpoint, line_number, start_date, end_date), _ttl(start_date, end_date), raw)
+        client.setex(
+            _key(endpoint, line_number, start_date, end_date, include_estimated), _ttl(start_date, end_date), raw
+        )
     except redis.RedisError:
         logger.warning("Redis write failed for stats cache", exc_info=True)
     return raw

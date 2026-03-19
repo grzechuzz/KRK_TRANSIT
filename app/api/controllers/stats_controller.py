@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response
 
 from app.api import schemas_docs as docs
 from app.api.db import DbSession
-from app.api.schemas import EndDateQuery, LineNumberPath, StartDateQuery
+from app.api.schemas import EndDateQuery, IncludeEstimatedQuery, LineNumberPath, StartDateQuery
 from app.api.services.stats_service import StatsService
 from app.api.validation import validate_date_range
 
@@ -30,6 +30,7 @@ def get_max_delay_between_stops(
     service: Stats,
     start_date: StartDateQuery,
     end_date: EndDateQuery,
+    include_estimated: IncludeEstimatedQuery = False,
 ) -> Response:
     """
     Returns a list of the Top 10 highest delay increments generated between two consecutive stops.
@@ -44,7 +45,10 @@ def get_max_delay_between_stops(
     (e.g., GPS drift during layovers, driver login delays).
     """
     validate_date_range(start_date, end_date)
-    return Response(content=service.max_delay_between_stops(line_number, start_date, end_date), media_type=JSON)
+    return Response(
+        content=service.max_delay_between_stops(line_number, start_date, end_date, include_estimated),
+        media_type=JSON,
+    )
 
 
 @router.get(
@@ -57,6 +61,7 @@ def get_route_delay(
     service: Stats,
     start_date: StartDateQuery,
     end_date: EndDateQuery,
+    include_estimated: IncludeEstimatedQuery = False,
 ) -> Response:
     """
     Returns the Top 10 trips with the highest delay generated between the second stop
@@ -72,7 +77,10 @@ def get_route_delay(
     (e.g., GPS drift during layovers, driver login delays).
     """
     validate_date_range(start_date, end_date)
-    return Response(content=service.route_delay(line_number, start_date, end_date), media_type=JSON)
+    return Response(
+        content=service.route_delay(line_number, start_date, end_date, include_estimated),
+        media_type=JSON,
+    )
 
 
 @router.get(
@@ -85,6 +93,7 @@ def get_punctuality(
     service: Stats,
     start_date: StartDateQuery,
     end_date: EndDateQuery,
+    include_estimated: IncludeEstimatedQuery = False,
 ) -> Response:
     """
     Returns a punctuality breakdown for a specific line based on recorded stop events within the specified period.
@@ -104,7 +113,10 @@ def get_punctuality(
     (e.g., GPS drift during layovers, driver login delays).
     """
     validate_date_range(start_date, end_date)
-    return Response(content=service.punctuality(line_number, start_date, end_date), media_type=JSON)
+    return Response(
+        content=service.punctuality(line_number, start_date, end_date, include_estimated),
+        media_type=JSON,
+    )
 
 
 @router.get(
@@ -117,6 +129,7 @@ def get_trend(
     service: Stats,
     start_date: StartDateQuery,
     end_date: EndDateQuery,
+    include_estimated: IncludeEstimatedQuery = False,
 ) -> Response:
     """
     Returns the daily average delay for a specific line over a period of time.
@@ -131,4 +144,7 @@ def get_trend(
     (e.g., GPS drift during layovers, driver login delays).
     """
     validate_date_range(start_date, end_date)
-    return Response(content=service.trend(line_number, start_date, end_date), media_type=JSON)
+    return Response(
+        content=service.trend(line_number, start_date, end_date, include_estimated),
+        media_type=JSON,
+    )

@@ -47,6 +47,7 @@ MIN_EARLY_DELAY_SECONDS: int = -180  # cross-batch: reject events earlier than t
 
 # API statistics filters
 MIN_DELAY_SECONDS: int = -90  # stops with delay below this are treated as garbage data
+ESTIMATED_VALID_FROM: str = "2026-03-19"  # estimated events before this date lack cross-batch validation
 
 # API cache TTL
 DEFAULT_TTL: int = 90

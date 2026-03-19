@@ -19,6 +19,14 @@ EndDateQuery = Annotated[
     ),
 ]
 
+IncludeEstimatedQuery = Annotated[
+    bool,
+    Query(
+        alias="include_estimated",
+        description="Include estimated stop events.",
+    ),
+]
+
 LineNumberPath = Annotated[
     str,
     Path(
