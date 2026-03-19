@@ -48,7 +48,7 @@ class StopEventDetector:
         agency_str = vp.agency.value
         prev_state = self._vehicle_state.get(agency_str, vp.license_plate)
 
-        # Trip changed → finalize old trip, then clean up Redis state
+        # Trip changed - finalize old trip, then clean up Redis state
         completion_events: list[StopEvent] = []
         if prev_state and prev_state.trip_id != vp.trip_id:
             raw_events = self._finalizer.finalize(prev_state)
@@ -115,7 +115,11 @@ class StopEventDetector:
                 continue
             validated.append(event)
             self._saved_seqs.mark_saved(
-                agency_str, trip_id, sd, event.stop_sequence,
-                event.delay_seconds, event.event_time,
+                agency_str,
+                trip_id,
+                sd,
+                event.stop_sequence,
+                event.delay_seconds,
+                event.event_time,
             )
         return validated
