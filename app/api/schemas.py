@@ -73,6 +73,7 @@ class MaxDelayBetweenStops(msgspec.Struct):
     delay_generated_seconds: int
     headsign: str
     service_date: str
+    is_estimated: bool
 
 
 class MaxDelayBetweenStopsResponse(msgspec.Struct):
@@ -98,6 +99,7 @@ class RouteDelay(msgspec.Struct):
     delay_generated_seconds: int
     headsign: str
     service_date: str
+    is_estimated: bool
 
 
 class RouteDelayResponse(msgspec.Struct):

@@ -16,6 +16,7 @@ class MaxDelayBetweenStops(BaseModel):
     delay_generated_seconds: int
     headsign: str
     service_date: str
+    is_estimated: bool
 
 
 class RouteDelay(BaseModel):
@@ -33,6 +34,7 @@ class RouteDelay(BaseModel):
     delay_generated_seconds: int
     headsign: str
     service_date: str
+    is_estimated: bool
 
 
 class TrendDay(BaseModel):
@@ -82,6 +84,7 @@ class MaxDelayBetweenStopsResponse(BaseModel):
                         "delay_generated_seconds": 233,
                         "headsign": "Os. Pod Fortem",
                         "service_date": "2026-02-14",
+                        "is_estimated": False,
                     },
                     {
                         "trip_id": "block_675_trip_13_service_2",
@@ -98,6 +101,7 @@ class MaxDelayBetweenStopsResponse(BaseModel):
                         "delay_generated_seconds": 153,
                         "headsign": "Os. Pod Fortem",
                         "service_date": "2026-02-14",
+                        "is_estimated": False,
                     },
                 ],
                 "trips_analyzed": 88,
@@ -135,6 +139,7 @@ class RouteDelayResponse(BaseModel):
                         "delay_generated_seconds": 1105,
                         "headsign": "Wieliczka Miasto",
                         "service_date": "2026-02-14",
+                        "is_estimated": False,
                     },
                     {
                         "trip_id": "block_780_trip_23_service_2",
@@ -151,6 +156,7 @@ class RouteDelayResponse(BaseModel):
                         "delay_generated_seconds": 1093,
                         "headsign": "Dworzec Główny Zachód",
                         "service_date": "2026-02-14",
+                        "is_estimated": False,
                     },
                 ],
                 "trips_analyzed": 36,

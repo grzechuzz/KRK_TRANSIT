@@ -61,7 +61,8 @@ class StatsRepository:
                     prev_event_time AT TIME ZONE 'Europe/Warsaw' AS from_event_time,
                     planned_time AT TIME ZONE 'Europe/Warsaw' AS to_planned_time,
                     event_time AT TIME ZONE 'Europe/Warsaw' AS to_event_time,
-                    generated_delay AS delay_generated_seconds, headsign
+                    generated_delay AS delay_generated_seconds, headsign,
+                    (detection_method != 1 OR prev_detection_method != 1) AS is_estimated
                 FROM consecutive
                 WHERE generated_delay IS NOT NULL AND prev_delay >= :min_delay
                 AND license_plate = prev_license_plate
@@ -105,7 +106,7 @@ class StatsRepository:
                 WITH filtered AS (
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
-                        e.max_stop_sequence
+                        e.max_stop_sequence, e.is_estimated
                     FROM stop_events e
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
@@ -139,7 +140,8 @@ class StatsRepository:
                         (LAST_VALUE(f.planned_time) OVER w_full) AT TIME ZONE 'Europe/Warsaw' AS last_planned_time,
                         (LAST_VALUE(f.event_time) OVER w_full) AT TIME ZONE 'Europe/Warsaw' AS last_event_time,
                         FIRST_VALUE(f.delay_seconds) OVER w AS start_delay,
-                        LAST_VALUE(f.delay_seconds) OVER w_full AS end_delay
+                        LAST_VALUE(f.delay_seconds) OVER w_full AS end_delay,
+                        f.is_estimated
                     FROM filtered f
                     JOIN valid_trips vt USING (trip_id, service_date)
                     WINDOW w AS (
@@ -157,7 +159,8 @@ class StatsRepository:
                         license_plate AS vehicle_number, first_stop, last_stop,
                         first_planned_time, first_event_time, last_planned_time, last_event_time,
                         start_delay AS start_delay_seconds, end_delay AS end_delay_seconds,
-                        (end_delay - start_delay) AS delay_generated_seconds, headsign
+                        (end_delay - start_delay) AS delay_generated_seconds, headsign,
+                        bool_or(is_estimated) OVER (PARTITION BY trip_id, service_date) AS is_estimated
                     FROM trip_bounds
                     WHERE start_delay >= :min_delay
                     ORDER BY trip_id, service_date, delay_generated_seconds DESC
