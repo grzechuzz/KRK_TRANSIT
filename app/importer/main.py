@@ -8,11 +8,12 @@ from app.common.db.connection import get_session
 from app.common.db.repositories.gtfs_meta import GtfsMetaRepository
 from app.common.feeds import get_all_feed_configs
 from app.common.gtfs.hashing import sha256_file
+from app.common.logging import setup_logging
 from app.common.redis.connection import get_client
 from app.importer.download import download_gtfs_zip
 from app.importer.load import load_gtfs_zip
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+setup_logging()
 logger = logging.getLogger(__name__)
 
 ARCHIVE_DIR = Path("data")

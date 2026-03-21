@@ -5,6 +5,7 @@ from typing import Any
 
 from app.common.db.connection import get_session
 from app.common.gtfs.readiness import wait_for_gtfs_ready
+from app.common.logging import setup_logging
 from app.common.redis.connection import get_client
 from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
 from app.common.redis.repositories.trip_updates import TripUpdatesRepository
@@ -13,7 +14,7 @@ from app.stop_writer.detector import StopEventDetector
 from app.stop_writer.subscriber import Subscriber
 from app.stop_writer.writer import BatchWriter
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+setup_logging()
 logger = logging.getLogger(__name__)
 
 shutdown_event = Event()

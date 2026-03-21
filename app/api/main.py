@@ -12,6 +12,9 @@ from app.api.exceptions import setup_exception_handlers
 from app.api.middleware import setup_middleware
 from app.api.response import MsgspecJSONResponse
 from app.common.db.connection import get_engine
+from app.common.logging import setup_logging
+
+setup_logging()
 
 
 @asynccontextmanager
