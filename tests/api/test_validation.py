@@ -1,9 +1,9 @@
 from datetime import date, timedelta
 
 import pytest
-from fastapi import HTTPException
 
 from app.api.validation import validate_date_range
+from app.common.exceptions import ValidationError
 
 
 def test_valid_range_passes():
@@ -11,11 +11,11 @@ def test_valid_range_passes():
 
 
 def test_start_after_end_raises():
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         validate_date_range(date(2026, 2, 10), date(2026, 2, 1))
 
-    assert exc_info.value.status_code == 422
-    assert "start_date must be <= end_date" in exc_info.value.detail
+    assert exc_info.value.error_code == "VALIDATION_ERROR"
+    assert "start_date must be <= end_date" in exc_info.value.message
 
 
 def test_same_day_passes():
@@ -26,11 +26,11 @@ def test_range_exceeds_max_days_raises():
     start = date(2025, 1, 1)
     end = start + timedelta(days=366)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         validate_date_range(start, end)
 
-    assert exc_info.value.status_code == 422
-    assert "365" in exc_info.value.detail
+    assert exc_info.value.error_code == "VALIDATION_ERROR"
+    assert "365" in exc_info.value.message
 
 
 def test_range_exactly_max_days_passes():
@@ -44,11 +44,11 @@ def test_future_end_date_raises():
     today = date.today()
     future = today + timedelta(days=1)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         validate_date_range(today, future)
 
-    assert exc_info.value.status_code == 422
-    assert "future" in exc_info.value.detail
+    assert exc_info.value.error_code == "VALIDATION_ERROR"
+    assert "future" in exc_info.value.message
 
 
 def test_today_as_end_date_passes():

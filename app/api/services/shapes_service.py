@@ -3,16 +3,17 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import ShapePoint, ShapeResponse
 from app.common.db.repositories.gtfs_static import GtfsStaticRepository
+from app.common.exceptions import ResourceNotFoundError
 
 
 class ShapesService:
     def __init__(self, db: Session):
         self._static_repo = GtfsStaticRepository(db)
 
-    def get_shape(self, shape_id: str) -> bytes | None:
+    def get_shape(self, shape_id: str) -> bytes:
         points = self._static_repo.get_shape_points(shape_id)
         if not points:
-            return None
+            raise ResourceNotFoundError("Shape", shape_id)
 
         response = ShapeResponse(
             shape_id=shape_id,

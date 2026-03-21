@@ -1,7 +1,6 @@
 from datetime import date
 from typing import Any
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api import cache
@@ -15,6 +14,7 @@ from app.api.schemas import (
     TrendDay,
     TrendResponse,
 )
+from app.common.exceptions import ResourceNotFoundError
 
 
 def _to_str(row: dict[str, Any]) -> dict[str, Any]:
@@ -23,10 +23,7 @@ def _to_str(row: dict[str, Any]) -> dict[str, Any]:
 
 def _check_line_exists(trips: int, line_number: str, start_date: date, end_date: date) -> None:
     if not trips:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Line {line_number} not found between {start_date} and {end_date}",
-        )
+        raise ResourceNotFoundError("Line", f"{line_number} ({start_date}\u2013{end_date})")
 
 
 class StatsService:

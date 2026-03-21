@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.api import schemas_docs as docs
 from app.api.db import DbSession
@@ -29,7 +29,4 @@ def get_trip_stops(request: Request, trip_id: TripIdPath, service: Trips) -> Res
 
     Use `trip_id` from the `/vehicles/positions` endpoint to fetch stops for a vehicle's current trip.
     """
-    data = service.get_trip_stops(trip_id)
-    if data is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Trip '{trip_id}' not found")
-    return Response(content=data, media_type=JSON)
+    return Response(content=service.get_trip_stops(trip_id), media_type=JSON)
