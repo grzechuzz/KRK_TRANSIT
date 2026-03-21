@@ -2,21 +2,26 @@
 
 # KRKtransit - mapa na żywo oraz statystyki opóźnień pojazdów komunikacji miejskiej w Krakowie
 
-REST API dostarczające statystyki opóźnień pojazdów komunikacji miejskiej (MPK, Mobilis) w Krakowie w czasie rzeczywistym. Bazuje ono na danych dostarczanych przez ZTP w Krakowie, udostępnionych zgodnie ze specyfikacją GTFS (Static & Realtime). 
+Platforma dostarczająca statystyki opóźnień pojazdów komunikacji miejskiej (MPK, Mobilis) w Krakowie w czasie rzeczywistym. Bazuje ona na danych dostarczanych przez ZTP w Krakowie, udostępnionych zgodnie ze specyfikacją GTFS (Static & Realtime). 
 
-API umożliwia m.in. identyfikację odcinków na których powstają największe opóźnienia oraz monitorowanie długofalowych trendów opóźnień dla każdej linii.  
-
-Dostępne są również endpointy z pozycjami pojazdów na żywo oraz geometrią tras.
+Umożliwia m.in. identyfikację odcinków na których powstają największe opóźnienia, monitorowanie długofalowych trendów opóźnień dla każdej linii oraz śledzenie pojazdów na żywo.  
 
 Kod można uruchomić lokalnie, co pozwala na samodzielne archiwizowanie danych o zrealizowanych kursach i budowanie własnej, historycznej bazy opóźnień.
 
-**Strona (Frontend):** https://krktransit.pl/
+**Strona:** https://krktransit.pl/
 
 **API:** https://api.krktransit.pl/docs
 
 **GTFS**: https://gtfs.org/documentation/overview/
 
 **Dane ZTP**: https://gtfs.ztp.krakow.pl/
+
+<img width="1912" height="944" alt="image" src="https://github.com/user-attachments/assets/12410f06-6d1e-472e-b6c8-5492d4441027" />
+
+<img width="1912" height="468" alt="image" src="https://github.com/user-attachments/assets/1bb9e101-0788-4f35-a6e4-70e3a4112ff0" />
+
+<img width="1912" height="733" alt="image" src="https://github.com/user-attachments/assets/b422d0ba-30c9-4ed1-9ae9-a8e6d5e20e5e" />
+
 
 
 ## Endpointy API
@@ -45,11 +50,9 @@ System składa się z czterech serwisów.
 | **Importer** | Pobiera i ładuje dane GTFS Static (trasy, przystanki, rozkłady, kształty tras) dla obu przewoźników. Wykrywa zmiany w plikach poprzez hashowanie SHA-256. |
 | **RT Poller** | Pobiera dane z `VehiclePositions.pb` i `TripUpdates.pb` co 5 sekund. Publikuje przetworzone pozycje pojazdów na Redis Pub/Sub i cache'uje predykcje z trip updates. |
 | **Stop Writer** | Nasłuchuje pozycji pojazdów z Redis Pub/Sub. Wykrywa zdarzenia na przystankach trzema metodami (patrz niżej). Zapisuje zdarzenia do bazy danych. |
-| **API** | Udostępnia statystyki opóźnień, dane punktualności, trendy dzienne, pozycje pojazdów na żywo i geometrię tras. Cache'uje odpowiedzi dotyczące statysyk w Redisie. |
+| **API** | Udostępnia statystyki opóźnień, dane punktualności, trendy dzienne, pozycje pojazdów na żywo i geometrię tras. Cache'uje odpowiedzi dotyczące statystyk w Redisie. |
 
 ## Detekcja zdarzeń na przystankach
-
-Główna logika (w `stop_writer/detector.py`) analizuje dane z VehiclePositions.pb oraz TripUpdates.pb i określa kiedy pojazd odwiedził przystanek.
 
 | Metoda | Trigger | Źródło czasu |
 |---|---|---|
@@ -57,7 +60,7 @@ Główna logika (w `stop_writer/detector.py`) analizuje dane z VehiclePositions.
 | `SEQ_JUMP` | Skok w sekwencji przystanków (pominięte przystanki) | Cache predykcji z TripUpdates |
 | `TIMEOUT` | Pojazd rozpoczął nowy kurs (zamykanie poprzedniego) | Cache predykcji z TripUpdates dla poprzedniego kursu |
 
-Ze względu na to, że metody estymacji dla pominiętych przystanków (`SEQ_JUMP`, `TIMEOUT`) nie dają jeszcze w pełni satysfakcjonujących rezultatów, udostępniamy w API jedynie zdarzenia oparte na STOPPED_AT, aby zagwarantować poprawność danych.
+Zdarzenia estymowane (`SEQ_JUMP`, `TIMEOUT`) są dostępne opcjonalnie przez parametr `?include_estimated=true`. Domyślnie API zwraca wyłącznie zdarzenia wykryte poprzez `STOPPED_AT`.
 
 ## Użyte technologie
 - Python 3.13
@@ -127,5 +130,3 @@ mypy .                  # sprawdzanie typów
 ```
 
 CI uruchamia wszystko przy każdym pushu do maina.
-
-
