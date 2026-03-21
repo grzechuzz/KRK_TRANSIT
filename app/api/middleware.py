@@ -13,7 +13,7 @@ def setup_middleware(app: FastAPI) -> None:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["https://krktransit.pl"],
         allow_methods=["GET"],
         allow_headers=["*"],
     )

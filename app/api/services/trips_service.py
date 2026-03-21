@@ -1,5 +1,4 @@
 import msgspec
-from sqlalchemy.orm import Session
 
 from app.api.schemas import TripStop, TripStopsResponse
 from app.common.db.repositories.gtfs_static import GtfsStaticRepository
@@ -7,8 +6,8 @@ from app.common.exceptions import ResourceNotFoundError
 
 
 class TripsService:
-    def __init__(self, db: Session):
-        self._static_repo = GtfsStaticRepository(db)
+    def __init__(self, static_repo: GtfsStaticRepository):
+        self._static_repo = static_repo
 
     def get_trip_stops(self, trip_id: str) -> bytes:
         rows = self._static_repo.get_stops_for_trip(trip_id)
