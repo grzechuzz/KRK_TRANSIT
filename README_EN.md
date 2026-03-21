@@ -1,14 +1,12 @@
 # KRKTransit - live vehicle tracking and delay statistics for public transport in Kraków
 
-REST API providing real-time bus delay statistics (MPK, Mobilis) in Kraków. It is based on data provided by ZTP Kraków, published according to the GTFS specification (Static & Realtime).
+Platform providing real-time public transport delay statistics (MPK, Mobilis) in Kraków. It is based on data provided by ZTP Kraków, published according to the GTFS specification (Static & Realtime).
 
-The API enables identification of route segments generating the highest delays and monitoring of long-term delay trends for each line.
-
-It also exposes endpoints with live vehicle positions and route geometry.
+Enables identification of route segments generating the highest delays, monitoring of long-term delay trends for each line and live vehicle tracking.
 
 The code can be run locally, allowing you to independently build your own historical database of delays.
 
-**Website (Frontend):** https://krktransit.pl/
+**Website:** https://krktransit.pl/
 
 **API:** https://api.krktransit.pl/docs
 
@@ -16,6 +14,11 @@ The code can be run locally, allowing you to independently build your own histor
 
 **ZTP Data**: https://gtfs.ztp.krakow.pl/
 
+<img width="1912" height="944" alt="image" src="https://github.com/user-attachments/assets/12410f06-6d1e-472e-b6c8-5492d4441027" />
+
+<img width="1912" height="468" alt="image" src="https://github.com/user-attachments/assets/1bb9e101-0788-4f35-a6e4-70e3a4112ff0" />
+
+<img width="1912" height="733" alt="image" src="https://github.com/user-attachments/assets/b422d0ba-30c9-4ed1-9ae9-a8e6d5e20e5e" />
 
 ## API Endpoints
 
@@ -47,15 +50,13 @@ The system consists of four services.
 
 ## Stop Event Detection
 
-The core logic (in `stop_writer/detector.py`) analyzes data from VehiclePositions.pb and TripUpdates.pb to determine when a vehicle has visited a stop.
-
 | Method | Trigger | Time Source |
 |---|---|---|
 | `STOPPED_AT` | Vehicle reports `STOPPED_AT` status | GPS timestamp |
 | `SEQ_JUMP` | Stop sequence jump (skipped stops) | TripUpdates prediction cache |
 | `TIMEOUT` | Vehicle started a new trip (completing the previous one) | TripUpdates prediction cache for the previous trip |
 
-Due to the fact that estimation methods for skipped stops (`SEQ_JUMP`, `TIMEOUT`) do not yet yield fully satisfactory results, the API currently only exposes events based on `STOPPED_AT` to guarantee data accuracy.
+Estimated events (`SEQ_JUMP`, `TIMEOUT`) are available optionally via the `?include_estimated=true` parameter. By default, the API returns only events detected via `STOPPED_AT`.
 
 ## Tech Stack
 - Python 3.13
