@@ -23,7 +23,7 @@ def _to_str(row: dict[str, Any]) -> dict[str, Any]:
 
 def _check_line_exists(trips: int, line_number: str, start_date: date, end_date: date) -> None:
     if not trips:
-        raise ResourceNotFoundError("Line", f"{line_number} ({start_date}\u2013{end_date})")
+        raise ResourceNotFoundError("Line", line_number)
 
 
 class StatsService:
