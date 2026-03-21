@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from app.api import schemas_docs as docs
 from app.api.db import DbSession
 from app.api.middleware import limiter
+from app.api.repositories.stats_repository import StatsRepository
 from app.api.schemas import EndDateQuery, IncludeEstimatedQuery, LineNumberPath, StartDateQuery
 from app.api.services.stats_service import StatsService
 from app.api.validation import validate_date_range
@@ -16,7 +17,7 @@ JSON = "application/json"
 
 
 def _get_service(db: DbSession) -> StatsService:
-    return StatsService(db)
+    return StatsService(StatsRepository(db))
 
 
 Stats = Annotated[StatsService, Depends(_get_service)]

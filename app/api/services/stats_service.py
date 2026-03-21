@@ -1,8 +1,6 @@
 from datetime import date
 from typing import Any
 
-from sqlalchemy.orm import Session
-
 from app.api import cache
 from app.api.repositories.stats_repository import StatsRepository
 from app.api.schemas import (
@@ -27,8 +25,8 @@ def _check_line_exists(trips: int, line_number: str, start_date: date, end_date:
 
 
 class StatsService:
-    def __init__(self, db: Session):
-        self._repo = StatsRepository(db)
+    def __init__(self, repo: StatsRepository):
+        self._repo = repo
 
     def max_delay_between_stops(
         self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False

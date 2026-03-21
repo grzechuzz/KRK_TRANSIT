@@ -8,6 +8,7 @@ from app.api.middleware import limiter
 from app.api.schemas import TripIdPath
 from app.api.services.trips_service import TripsService
 from app.common.constants import RATE_LIMIT_DEFAULT
+from app.common.db.repositories.gtfs_static import GtfsStaticRepository
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -15,7 +16,7 @@ JSON = "application/json"
 
 
 def _get_service(db: DbSession) -> TripsService:
-    return TripsService(db)
+    return TripsService(GtfsStaticRepository(db))
 
 
 Trips = Annotated[TripsService, Depends(_get_service)]

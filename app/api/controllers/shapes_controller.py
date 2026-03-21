@@ -8,6 +8,7 @@ from app.api.middleware import limiter
 from app.api.schemas import ShapeIdPath
 from app.api.services.shapes_service import ShapesService
 from app.common.constants import RATE_LIMIT_DEFAULT
+from app.common.db.repositories.gtfs_static import GtfsStaticRepository
 
 router = APIRouter(prefix="/shapes", tags=["shapes"])
 
@@ -15,7 +16,7 @@ JSON = "application/json"
 
 
 def _get_service(db: DbSession) -> ShapesService:
-    return ShapesService(db)
+    return ShapesService(GtfsStaticRepository(db))
 
 
 Shapes = Annotated[ShapesService, Depends(_get_service)]

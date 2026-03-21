@@ -1,5 +1,4 @@
 import msgspec
-from sqlalchemy.orm import Session
 
 from app.api.cache import get_vehicles_cache, set_vehicles_cache
 from app.api.repositories.vehicles_repository import VehiclesRepository
@@ -8,9 +7,9 @@ from app.common.db.repositories.gtfs_static import GtfsStaticRepository
 
 
 class VehiclesService:
-    def __init__(self, db: Session):
-        self._static_repo = GtfsStaticRepository(db)
-        self._vehicles_repo = VehiclesRepository()
+    def __init__(self, static_repo: GtfsStaticRepository, vehicles_repo: VehiclesRepository):
+        self._static_repo = static_repo
+        self._vehicles_repo = vehicles_repo
 
     def get_live_vehicles(self) -> bytes:
         cached = get_vehicles_cache()
