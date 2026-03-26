@@ -14,6 +14,7 @@ services:
       - db_password_api
       - db_password_writer
       - db_password_importer
+      - db_password_rt_poller
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -85,14 +86,14 @@ services:
       migrator:
         condition: service_completed_successfully
     secrets:
-      - db_password_api
+      - db_password_rt_poller
       - redis_password
     environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password_api
+      DB_PASSWORD_FILE: /run/secrets/db_password_rt_poller
       DB_HOST: gtfs_db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${API_READER_USER}
+      DB_USER: ${RT_POLLER_USER}
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
@@ -167,6 +168,8 @@ secrets:
     file: ../secrets/db_password_writer
   db_password_importer:
     file: ../secrets/db_password_importer
+  db_password_rt_poller:
+    file: ../secrets/db_password_rt_poller
   redis_password:
     file: ../secrets/redis_password
 
