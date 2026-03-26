@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml /app/pyproject.toml
-COPY app /app/app
+COPY app/__init__.py /app/app/__init__.py
+COPY app/common /app/app/common
 COPY alembic.ini /app/alembic.ini
 COPY migrations /app/migrations
 
