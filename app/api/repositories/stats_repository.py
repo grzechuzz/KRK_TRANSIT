@@ -34,7 +34,7 @@ class StatsRepository:
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
                         e.detection_method
-                    FROM stop_events e
+                    FROM events.stop_events e
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
                     AND e.stop_sequence < e.max_stop_sequence
@@ -85,7 +85,7 @@ class StatsRepository:
         """Count distinct trips for a line in the given period."""
         result = self._session.execute(
             text("""
-                SELECT COUNT(DISTINCT (trip_id, service_date)) FROM stop_events
+                SELECT COUNT(DISTINCT (trip_id, service_date)) FROM events.stop_events
                 WHERE line_number = :line_number AND service_date BETWEEN :start_date AND :end_date
             """),
             {
@@ -108,7 +108,7 @@ class StatsRepository:
                     SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
                         e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
                         e.max_stop_sequence, e.is_estimated
-                    FROM stop_events e
+                    FROM events.stop_events e
                     WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                     AND e.stop_sequence > 1
                     AND e.stop_sequence < e.max_stop_sequence
@@ -196,7 +196,7 @@ class StatsRepository:
                     COUNT(*) FILTER (WHERE e.delay_seconds <= 120) AS on_time,
                     COUNT(*) FILTER (WHERE e.delay_seconds > 120 AND e.delay_seconds <= 360) AS slightly_delayed,
                     COUNT(*) FILTER (WHERE e.delay_seconds > 360) AS delayed
-                FROM stop_events e
+                FROM events.stop_events e
                 WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                 AND e.stop_sequence > 1
                 AND e.stop_sequence < e.max_stop_sequence
@@ -225,7 +225,7 @@ class StatsRepository:
                 SELECT e.service_date AS "date",
                     ROUND(AVG(e.delay_seconds)::numeric, 1) AS avg_delay_seconds,
                     COUNT(DISTINCT (e.trip_id, e.service_date)) AS trips_count
-                FROM stop_events e
+                FROM events.stop_events e
                 WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
                 AND e.stop_sequence > 1
                 AND e.stop_sequence < e.max_stop_sequence
