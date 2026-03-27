@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from app.common.constants import TIMEZONE
+
 
 def parse_gtfs_time_to_seconds(value: str) -> int:
     """
@@ -40,7 +42,7 @@ def compute_service_date(event_time: datetime, scheduled_seconds: int) -> date:
 
     For overnight trips (scheduled_seconds >= 86400) date is the previous calendar day
     """
-    local_time = event_time.astimezone(ZoneInfo("Europe/Warsaw"))
+    local_time = event_time.astimezone(ZoneInfo(TIMEZONE))
     service_date = local_time.date()
 
     if scheduled_seconds >= 86400:
@@ -52,7 +54,7 @@ def compute_service_date(event_time: datetime, scheduled_seconds: int) -> date:
 
 
 def compute_planned_time(
-    service_date: date, scheduled_seconds: int, tz: ZoneInfo = ZoneInfo("Europe/Warsaw")
+    service_date: date, scheduled_seconds: int, tz: ZoneInfo = ZoneInfo(TIMEZONE)
 ) -> datetime:
     """
     Converts GTFS time (seconds since service start) to actual datetime.

@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from app.common.constants import TIMEZONE
+
 
 def _read_secret_file(env_var: str, default: str = "") -> str:
     file_path = os.getenv(env_var)
@@ -73,6 +75,6 @@ def get_config() -> AppConfig:
             username=os.getenv("REDIS_USERNAME", "mpk_redis"),
             password=redis_password,
         ),
-        timezone=os.getenv("TZ", "Europe/Warsaw"),
+        timezone=os.getenv("TZ", TIMEZONE),
         data_dir=Path(os.getenv("DATA_DIR", "/app/data")),
     )
