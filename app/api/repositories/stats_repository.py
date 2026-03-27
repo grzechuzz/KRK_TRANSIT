@@ -1,18 +1,50 @@
 from datetime import date
 from typing import Any
 
-from sqlalchemy import text
+import sqlalchemy as sa
+from sqlalchemy import and_, distinct, func, or_
 from sqlalchemy.orm import Session
 
-from app.common.constants import ESTIMATED_VALID_FROM, MIN_DELAY_SECONDS
+from app.common.constants import ESTIMATED_VALID_FROM, MIN_DELAY_SECONDS, TIMEZONE
 
-# When including estimated events, only trust them from the date cross-batch validation was deployed.
-# STOPPED_AT events are always included regardless of date.
-_ESTIMATED_FILTER = "AND (e.detection_method = 1 OR e.service_date >= :estimated_valid_from)"
-_ESTIMATED_PREV_FILTER = (
-    "AND (detection_method = 1 OR service_date >= :estimated_valid_from)"
-    " AND (prev_detection_method = 1 OR service_date >= :estimated_valid_from)"
+_TZ = TIMEZONE
+
+# Lightweight Core table descriptor — used only for query building, not DDL or reflection.
+_stop_events = sa.Table(
+    'stop_events',
+    sa.MetaData(),
+    sa.Column('trip_id'),
+    sa.Column('service_date'),
+    sa.Column('stop_sequence'),
+    sa.Column('stop_name'),
+    sa.Column('headsign'),
+    sa.Column('delay_seconds'),
+    sa.Column('line_number'),
+    sa.Column('license_plate'),
+    sa.Column('planned_time'),
+    sa.Column('event_time'),
+    sa.Column('detection_method'),
+    sa.Column('max_stop_sequence'),
+    sa.Column('is_estimated'),
+    schema='events',
 )
+
+
+def _det_filter(tbl: Any, include_estimated: bool) -> Any:
+    """WHERE condition for detection_method. Values come from internal constants only."""
+    if include_estimated:
+        return or_(tbl.c.detection_method == 1, tbl.c.service_date >= ESTIMATED_VALID_FROM)
+    return tbl.c.detection_method == 1
+
+
+def _prev_det_filter(tbl: Any, include_estimated: bool) -> Any:
+    """WHERE condition for both current and previous detection_method (consecutive CTE)."""
+    if include_estimated:
+        return and_(
+            or_(tbl.c.detection_method == 1, tbl.c.service_date >= ESTIMATED_VALID_FROM),
+            or_(tbl.c.prev_detection_method == 1, tbl.c.service_date >= ESTIMATED_VALID_FROM),
+        )
+    return and_(tbl.c.detection_method == 1, tbl.c.prev_detection_method == 1)
 
 
 class StatsRepository:
@@ -23,160 +55,219 @@ class StatsRepository:
         self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
     ) -> list[dict[str, Any]]:
         """Generated delay = delay at stop N+1 - delay at stop N."""
-        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
-        prev_det_filter = (
-            _ESTIMATED_PREV_FILTER if include_estimated else ("AND detection_method = 1 AND prev_detection_method = 1")
+        e = _stop_events.alias('e')
+
+        filtered = (
+            sa.select(
+                e.c.trip_id, e.c.service_date, e.c.stop_sequence, e.c.stop_name, e.c.headsign,
+                e.c.delay_seconds, e.c.line_number, e.c.license_plate,
+                e.c.planned_time, e.c.event_time, e.c.detection_method,
+            )
+            .where(and_(
+                e.c.line_number == line_number,
+                e.c.service_date.between(start_date, end_date),
+                e.c.stop_sequence > 1,
+                e.c.stop_sequence < e.c.max_stop_sequence,
+                _det_filter(e, include_estimated),
+            ))
+            .cte('filtered')
         )
 
-        result = self._session.execute(
-            text(f"""
-                WITH filtered AS (
-                    SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
-                        e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
-                        e.detection_method
-                    FROM events.stop_events e
-                    WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
-                    AND e.stop_sequence > 1
-                    AND e.stop_sequence < e.max_stop_sequence
-                    {det_filter}
-                ),
-                consecutive AS (
-                    SELECT trip_id, service_date, stop_sequence, stop_name, headsign, line_number,
-                        license_plate, delay_seconds, planned_time, event_time, detection_method,
-                        delay_seconds - LAG(delay_seconds) OVER w AS generated_delay,
-                        LAG(delay_seconds) OVER w AS prev_delay,
-                        LAG(stop_name) OVER w AS prev_stop_name,
-                        LAG(stop_sequence) OVER w AS prev_stop_sequence,
-                        LAG(planned_time) OVER w AS prev_planned_time,
-                        LAG(event_time) OVER w AS prev_event_time,
-                        LAG(license_plate) OVER w AS prev_license_plate,
-                        LAG(detection_method) OVER w AS prev_detection_method
-                    FROM filtered
-                    WINDOW w AS (PARTITION BY trip_id, service_date ORDER BY stop_sequence)
-                )
-                SELECT trip_id, service_date, line_number, license_plate AS vehicle_number,
-                    prev_stop_name AS from_stop, stop_name AS to_stop,
-                    prev_stop_sequence AS from_sequence, stop_sequence AS to_sequence,
-                    prev_planned_time AT TIME ZONE 'Europe/Warsaw' AS from_planned_time,
-                    prev_event_time AT TIME ZONE 'Europe/Warsaw' AS from_event_time,
-                    planned_time AT TIME ZONE 'Europe/Warsaw' AS to_planned_time,
-                    event_time AT TIME ZONE 'Europe/Warsaw' AS to_event_time,
-                    generated_delay AS delay_generated_seconds, headsign,
-                    (detection_method != 1 OR prev_detection_method != 1) AS is_estimated
-                FROM consecutive
-                WHERE generated_delay IS NOT NULL AND prev_delay >= :min_delay
-                AND license_plate = prev_license_plate
-                AND stop_sequence = prev_stop_sequence + 1
-                {prev_det_filter}
-                ORDER BY generated_delay DESC
-                LIMIT 10
-            """),
-            {
-                "line_number": line_number,
-                "start_date": start_date,
-                "end_date": end_date,
-                "min_delay": MIN_DELAY_SECONDS,
-                "estimated_valid_from": ESTIMATED_VALID_FROM,
-            },
+        part_by = [filtered.c.trip_id, filtered.c.service_date]
+        order_by = filtered.c.stop_sequence
+
+        consecutive = (
+            sa.select(
+                filtered.c.trip_id, filtered.c.service_date, filtered.c.stop_sequence,
+                filtered.c.stop_name, filtered.c.headsign, filtered.c.line_number,
+                filtered.c.license_plate, filtered.c.delay_seconds,
+                filtered.c.planned_time, filtered.c.event_time, filtered.c.detection_method,
+                (
+                    filtered.c.delay_seconds
+                    - func.lag(filtered.c.delay_seconds).over(partition_by=part_by, order_by=order_by)
+                ).label('generated_delay'),
+                func.lag(filtered.c.delay_seconds).over(partition_by=part_by, order_by=order_by).label('prev_delay'),
+                func.lag(filtered.c.stop_name).over(partition_by=part_by, order_by=order_by).label('prev_stop_name'),
+                func.lag(filtered.c.stop_sequence).over(partition_by=part_by, order_by=order_by).label('prev_stop_sequence'),
+                func.lag(filtered.c.planned_time).over(partition_by=part_by, order_by=order_by).label('prev_planned_time'),
+                func.lag(filtered.c.event_time).over(partition_by=part_by, order_by=order_by).label('prev_event_time'),
+                func.lag(filtered.c.license_plate).over(partition_by=part_by, order_by=order_by).label('prev_license_plate'),
+                func.lag(filtered.c.detection_method).over(partition_by=part_by, order_by=order_by).label('prev_detection_method'),
+            )
+            .cte('consecutive')
         )
+
+        q = (
+            sa.select(
+                consecutive.c.trip_id,
+                consecutive.c.service_date,
+                consecutive.c.line_number,
+                consecutive.c.license_plate.label('vehicle_number'),
+                consecutive.c.prev_stop_name.label('from_stop'),
+                consecutive.c.stop_name.label('to_stop'),
+                consecutive.c.prev_stop_sequence.label('from_sequence'),
+                consecutive.c.stop_sequence.label('to_sequence'),
+                func.timezone(_TZ, consecutive.c.prev_planned_time).label('from_planned_time'),
+                func.timezone(_TZ, consecutive.c.prev_event_time).label('from_event_time'),
+                func.timezone(_TZ, consecutive.c.planned_time).label('to_planned_time'),
+                func.timezone(_TZ, consecutive.c.event_time).label('to_event_time'),
+                consecutive.c.generated_delay.label('delay_generated_seconds'),
+                consecutive.c.headsign,
+                or_(
+                    consecutive.c.detection_method != 1,
+                    consecutive.c.prev_detection_method != 1,
+                ).label('is_estimated'),
+            )
+            .where(and_(
+                consecutive.c.generated_delay.isnot(None),
+                consecutive.c.prev_delay >= MIN_DELAY_SECONDS,
+                consecutive.c.license_plate == consecutive.c.prev_license_plate,
+                consecutive.c.stop_sequence == consecutive.c.prev_stop_sequence + 1,
+                _prev_det_filter(consecutive, include_estimated),
+            ))
+            .order_by(consecutive.c.generated_delay.desc())
+            .limit(10)
+        )
+
+        result = self._session.execute(q)
         return [dict(r) for r in result.mappings().all()]
 
     def trips_count(self, line_number: str, start_date: date, end_date: date) -> int:
         """Count distinct trips for a line in the given period."""
-        result = self._session.execute(
-            text("""
-                SELECT COUNT(DISTINCT (trip_id, service_date)) FROM events.stop_events
-                WHERE line_number = :line_number AND service_date BETWEEN :start_date AND :end_date
-            """),
-            {
-                "line_number": line_number,
-                "start_date": start_date,
-                "end_date": end_date,
-            },
+        e = _stop_events.alias('e')
+        # COUNT(DISTINCT (trip_id, service_date)) via subquery — equivalent, avoids row-constructor syntax.
+        subq = (
+            sa.select(e.c.trip_id, e.c.service_date)
+            .distinct()
+            .where(and_(
+                e.c.line_number == line_number,
+                e.c.service_date.between(start_date, end_date),
+            ))
+            .subquery()
         )
+        result = self._session.execute(sa.select(func.count()).select_from(subq))
         return result.scalar() or 0
 
     def max_route_delay(
         self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
     ) -> list[dict[str, Any]]:
         """Route delay = delay at second-to-last stop - delay at second stop."""
-        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+        e = _stop_events.alias('e')
 
-        result = self._session.execute(
-            text(f"""
-                WITH filtered AS (
-                    SELECT e.trip_id, e.service_date, e.stop_sequence, e.stop_name, e.headsign,
-                        e.delay_seconds, e.line_number, e.license_plate, e.planned_time, e.event_time,
-                        e.max_stop_sequence, e.is_estimated
-                    FROM events.stop_events e
-                    WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
-                    AND e.stop_sequence > 1
-                    AND e.stop_sequence < e.max_stop_sequence
-                    {det_filter}
-                ),
-                trip_vehicle_check AS (
-                    SELECT trip_id, service_date, COUNT(DISTINCT license_plate) AS vehicle_count
-                    FROM filtered
-                    GROUP BY trip_id, service_date
-                ),
-                boundary_check AS (
-                    SELECT f.trip_id, f.service_date, f.max_stop_sequence,
-                        bool_or(f.stop_sequence = 2) AS has_second,
-                        bool_or(f.stop_sequence = f.max_stop_sequence - 1) AS has_penultimate
-                    FROM filtered f
-                    GROUP BY f.trip_id, f.service_date, f.max_stop_sequence
-                ),
-                valid_trips AS (
-                    SELECT bc.trip_id, bc.service_date
-                    FROM boundary_check bc
-                    JOIN trip_vehicle_check tvc USING (trip_id, service_date)
-                    WHERE bc.has_second AND bc.has_penultimate AND tvc.vehicle_count = 1
-                ),
-                trip_bounds AS (
-                    SELECT f.trip_id, f.service_date, f.headsign, f.line_number, f.license_plate,
-                        FIRST_VALUE(f.stop_name) OVER w AS first_stop,
-                        LAST_VALUE(f.stop_name) OVER w_full AS last_stop,
-                        (FIRST_VALUE(f.planned_time) OVER w) AT TIME ZONE 'Europe/Warsaw' AS first_planned_time,
-                        (FIRST_VALUE(f.event_time) OVER w) AT TIME ZONE 'Europe/Warsaw' AS first_event_time,
-                        (LAST_VALUE(f.planned_time) OVER w_full) AT TIME ZONE 'Europe/Warsaw' AS last_planned_time,
-                        (LAST_VALUE(f.event_time) OVER w_full) AT TIME ZONE 'Europe/Warsaw' AS last_event_time,
-                        FIRST_VALUE(f.delay_seconds) OVER w AS start_delay,
-                        LAST_VALUE(f.delay_seconds) OVER w_full AS end_delay,
-                        f.is_estimated
-                    FROM filtered f
-                    JOIN valid_trips vt USING (trip_id, service_date)
-                    WINDOW w AS (
-                        PARTITION BY f.trip_id, f.service_date
-                        ORDER BY f.stop_sequence
-                    ),
-                    w_full AS (
-                        PARTITION BY f.trip_id, f.service_date
-                        ORDER BY f.stop_sequence
-                        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-                    )
-                )
-                SELECT * FROM (
-                    SELECT DISTINCT ON (trip_id, service_date) trip_id, service_date, line_number,
-                        license_plate AS vehicle_number, first_stop, last_stop,
-                        first_planned_time, first_event_time, last_planned_time, last_event_time,
-                        start_delay AS start_delay_seconds, end_delay AS end_delay_seconds,
-                        (end_delay - start_delay) AS delay_generated_seconds, headsign,
-                        bool_or(is_estimated) OVER (PARTITION BY trip_id, service_date) AS is_estimated
-                    FROM trip_bounds
-                    WHERE start_delay >= :min_delay
-                    ORDER BY trip_id, service_date, delay_generated_seconds DESC
-                ) ranked
-                ORDER BY delay_generated_seconds DESC
-                LIMIT 10
-            """),
-            {
-                "line_number": line_number,
-                "start_date": start_date,
-                "end_date": end_date,
-                "min_delay": MIN_DELAY_SECONDS,
-                "estimated_valid_from": ESTIMATED_VALID_FROM,
-            },
+        filtered = (
+            sa.select(
+                e.c.trip_id, e.c.service_date, e.c.stop_sequence, e.c.stop_name, e.c.headsign,
+                e.c.delay_seconds, e.c.line_number, e.c.license_plate,
+                e.c.planned_time, e.c.event_time, e.c.max_stop_sequence, e.c.is_estimated,
+            )
+            .where(and_(
+                e.c.line_number == line_number,
+                e.c.service_date.between(start_date, end_date),
+                e.c.stop_sequence > 1,
+                e.c.stop_sequence < e.c.max_stop_sequence,
+                _det_filter(e, include_estimated),
+            ))
+            .cte('filtered')
         )
+
+        trip_vehicle_check = (
+            sa.select(
+                filtered.c.trip_id,
+                filtered.c.service_date,
+                func.count(distinct(filtered.c.license_plate)).label('vehicle_count'),
+            )
+            .group_by(filtered.c.trip_id, filtered.c.service_date)
+            .cte('trip_vehicle_check')
+        )
+
+        boundary_check = (
+            sa.select(
+                filtered.c.trip_id,
+                filtered.c.service_date,
+                filtered.c.max_stop_sequence,
+                func.bool_or(filtered.c.stop_sequence == 2).label('has_second'),
+                func.bool_or(
+                    filtered.c.stop_sequence == filtered.c.max_stop_sequence - 1
+                ).label('has_penultimate'),
+            )
+            .group_by(filtered.c.trip_id, filtered.c.service_date, filtered.c.max_stop_sequence)
+            .cte('boundary_check')
+        )
+
+        bc = boundary_check
+        tvc = trip_vehicle_check
+        valid_trips = (
+            sa.select(bc.c.trip_id, bc.c.service_date)
+            .join(tvc, and_(bc.c.trip_id == tvc.c.trip_id, bc.c.service_date == tvc.c.service_date))
+            .where(and_(bc.c.has_second, bc.c.has_penultimate, tvc.c.vehicle_count == 1))
+            .cte('valid_trips')
+        )
+
+        part_by = [filtered.c.trip_id, filtered.c.service_date]
+        order_by = filtered.c.stop_sequence
+
+        vt = valid_trips
+        trip_bounds = (
+            sa.select(
+                filtered.c.trip_id, filtered.c.service_date, filtered.c.headsign,
+                filtered.c.line_number, filtered.c.license_plate,
+                func.first_value(filtered.c.stop_name).over(
+                    partition_by=part_by, order_by=order_by
+                ).label('first_stop'),
+                func.last_value(filtered.c.stop_name).over(
+                    partition_by=part_by, order_by=order_by, rows=(None, None)
+                ).label('last_stop'),
+                func.timezone(_TZ, func.first_value(filtered.c.planned_time).over(
+                    partition_by=part_by, order_by=order_by
+                )).label('first_planned_time'),
+                func.timezone(_TZ, func.first_value(filtered.c.event_time).over(
+                    partition_by=part_by, order_by=order_by
+                )).label('first_event_time'),
+                func.timezone(_TZ, func.last_value(filtered.c.planned_time).over(
+                    partition_by=part_by, order_by=order_by, rows=(None, None)
+                )).label('last_planned_time'),
+                func.timezone(_TZ, func.last_value(filtered.c.event_time).over(
+                    partition_by=part_by, order_by=order_by, rows=(None, None)
+                )).label('last_event_time'),
+                func.first_value(filtered.c.delay_seconds).over(
+                    partition_by=part_by, order_by=order_by
+                ).label('start_delay'),
+                func.last_value(filtered.c.delay_seconds).over(
+                    partition_by=part_by, order_by=order_by, rows=(None, None)
+                ).label('end_delay'),
+                filtered.c.is_estimated,
+            )
+            .join(vt, and_(filtered.c.trip_id == vt.c.trip_id, filtered.c.service_date == vt.c.service_date))
+            .cte('trip_bounds')
+        )
+
+        tb = trip_bounds
+        delay_generated = (tb.c.end_delay - tb.c.start_delay).label('delay_generated_seconds')
+
+        inner_q = (
+            sa.select(
+                tb.c.trip_id, tb.c.service_date, tb.c.line_number,
+                tb.c.license_plate.label('vehicle_number'),
+                tb.c.first_stop, tb.c.last_stop,
+                tb.c.first_planned_time, tb.c.first_event_time,
+                tb.c.last_planned_time, tb.c.last_event_time,
+                tb.c.start_delay.label('start_delay_seconds'),
+                tb.c.end_delay.label('end_delay_seconds'),
+                delay_generated,
+                tb.c.headsign,
+                func.bool_or(tb.c.is_estimated).over(
+                    partition_by=[tb.c.trip_id, tb.c.service_date]
+                ).label('is_estimated'),
+            )
+            .distinct(tb.c.trip_id, tb.c.service_date)
+            .where(tb.c.start_delay >= MIN_DELAY_SECONDS)
+            .order_by(tb.c.trip_id, tb.c.service_date, delay_generated.desc())
+            .subquery('ranked')
+        )
+
+        q = sa.select(inner_q).order_by(inner_q.c.delay_generated_seconds.desc()).limit(10)
+
+        result = self._session.execute(q)
         return [dict(r) for r in result.mappings().all()]
 
     def punctuality(
@@ -188,58 +279,49 @@ class StatsRepository:
         - slightly_delayed: 120s < delay <= 360s
         - delayed: delay > 360s
         """
-        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+        e = _stop_events.alias('e')
 
-        result = self._session.execute(
-            text(f"""
-                SELECT COUNT(*) AS total,
-                    COUNT(*) FILTER (WHERE e.delay_seconds <= 120) AS on_time,
-                    COUNT(*) FILTER (WHERE e.delay_seconds > 120 AND e.delay_seconds <= 360) AS slightly_delayed,
-                    COUNT(*) FILTER (WHERE e.delay_seconds > 360) AS delayed
-                FROM events.stop_events e
-                WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
-                AND e.stop_sequence > 1
-                AND e.stop_sequence < e.max_stop_sequence
-                AND e.delay_seconds >= :min_delay
-                {det_filter}
-            """),
-            {
-                "line_number": line_number,
-                "start_date": start_date,
-                "end_date": end_date,
-                "min_delay": MIN_DELAY_SECONDS,
-                "estimated_valid_from": ESTIMATED_VALID_FROM,
-            },
-        )
-        row = result.mappings().first()
-        return dict(row) if row else {"total": 0, "on_time": 0, "slightly_delayed": 0, "delayed": 0}
+        q = sa.select(
+            func.count().label('total'),
+            func.count().filter(e.c.delay_seconds <= 120).label('on_time'),
+            func.count().filter(and_(e.c.delay_seconds > 120, e.c.delay_seconds <= 360)).label('slightly_delayed'),
+            func.count().filter(e.c.delay_seconds > 360).label('delayed'),
+        ).where(and_(
+            e.c.line_number == line_number,
+            e.c.service_date.between(start_date, end_date),
+            e.c.stop_sequence > 1,
+            e.c.stop_sequence < e.c.max_stop_sequence,
+            e.c.delay_seconds >= MIN_DELAY_SECONDS,
+            _det_filter(e, include_estimated),
+        ))
+
+        row = self._session.execute(q).mappings().first()
+        return dict(row) if row else {'total': 0, 'on_time': 0, 'slightly_delayed': 0, 'delayed': 0}
 
     def trend(
         self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
     ) -> list[dict[str, Any]]:
         """Average delay per day for a line."""
-        det_filter = _ESTIMATED_FILTER if include_estimated else "AND e.detection_method = 1"
+        e = _stop_events.alias('e')
 
-        result = self._session.execute(
-            text(f"""
-                SELECT e.service_date AS "date",
-                    ROUND(AVG(e.delay_seconds)::numeric, 1) AS avg_delay_seconds,
-                    COUNT(DISTINCT (e.trip_id, e.service_date)) AS trips_count
-                FROM events.stop_events e
-                WHERE e.line_number = :line_number AND e.service_date BETWEEN :start_date AND :end_date
-                AND e.stop_sequence > 1
-                AND e.stop_sequence < e.max_stop_sequence
-                AND e.delay_seconds >= :min_delay
-                {det_filter}
-                GROUP BY e.service_date
-                ORDER BY e.service_date
-            """),
-            {
-                "line_number": line_number,
-                "start_date": start_date,
-                "end_date": end_date,
-                "min_delay": MIN_DELAY_SECONDS,
-                "estimated_valid_from": ESTIMATED_VALID_FROM,
-            },
+        q = (
+            sa.select(
+                e.c.service_date.label('date'),
+                func.round(sa.cast(func.avg(e.c.delay_seconds), sa.Numeric), 1).label('avg_delay_seconds'),
+                # Within each service_date group, COUNT(DISTINCT trip_id) == COUNT(DISTINCT (trip_id, service_date)).
+                func.count(distinct(e.c.trip_id)).label('trips_count'),
+            )
+            .where(and_(
+                e.c.line_number == line_number,
+                e.c.service_date.between(start_date, end_date),
+                e.c.stop_sequence > 1,
+                e.c.stop_sequence < e.c.max_stop_sequence,
+                e.c.delay_seconds >= MIN_DELAY_SECONDS,
+                _det_filter(e, include_estimated),
+            ))
+            .group_by(e.c.service_date)
+            .order_by(e.c.service_date)
         )
+
+        result = self._session.execute(q)
         return [dict(r) for r in result.mappings().all()]
