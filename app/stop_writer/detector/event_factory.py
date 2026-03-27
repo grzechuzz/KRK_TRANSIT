@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+from app.common.constants import TIMEZONE
 from app.common.db.models import CurrentStopTime, CurrentTrip
 from app.common.gtfs.timeparse import compute_delay_seconds, compute_planned_time
 from app.common.models.enums import DetectionMethod
@@ -8,7 +9,7 @@ from app.common.models.events import StopEvent
 from app.common.models.gtfs_realtime import VehiclePosition
 from app.stop_writer.detector.gtfs_cache import GtfsCache
 
-TZ = ZoneInfo("Europe/Warsaw")
+TZ = ZoneInfo(TIMEZONE)
 
 
 class EventFactory:
