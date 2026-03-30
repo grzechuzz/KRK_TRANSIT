@@ -42,7 +42,7 @@ def fetch_weather(past_days: int) -> list[WeatherObservation]:
         "hourly": _HOURLY_VARS,
         "timezone": TIMEZONE,
         "past_days": past_days,
-        "forecast_days": 1,
+        "forecast_days": 0,
     }
     last_exc: Exception = RuntimeError("no attempts made")
     for attempt, backoff in enumerate(WEATHER_FETCH_RETRY_BACKOFF_SECONDS, start=1):
@@ -59,9 +59,7 @@ def fetch_weather(past_days: int) -> list[WeatherObservation]:
         except Exception as e:
             last_exc = e
             if attempt < WEATHER_FETCH_MAX_RETRIES:
-                logger.warning(
-                    f"Open-Meteo fetch failed (attempt {attempt}/{_MAX_RETRIES}): {e}, retrying in {backoff}s"
-                )
+                logger.warning(f"Open-Meteo fetch failed, retrying in {backoff}s")
                 time.sleep(backoff)
     else:
         raise last_exc
@@ -69,13 +67,21 @@ def fetch_weather(past_days: int) -> list[WeatherObservation]:
     tz = ZoneInfo(TIMEZONE)
     h = data["hourly"]
 
+    now_local = datetime.now(tz)
+
     observations: list[WeatherObservation] = []
     for i, time_str in enumerate(h["time"]):
         if h["temperature_2m"][i] is None:
             continue
+
+        observed_time = datetime.fromisoformat(time_str).replace(tzinfo=tz)
+
+        if observed_time > now_local:
+            continue
+
         observations.append(
             WeatherObservation(
-                observed_at=datetime.fromisoformat(time_str).replace(tzinfo=tz),
+                observed_at=observed_time,
                 temperature_c=h["temperature_2m"][i],
                 precipitation_mm=h["precipitation"][i] or 0.0,
                 rain_mm=h["rain"][i] or 0.0,
