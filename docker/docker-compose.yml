@@ -15,6 +15,7 @@ services:
       - db_password_writer
       - db_password_importer
       - db_password_rt_poller
+      - db_password_weather_collector
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -160,6 +161,25 @@ services:
       retries: 3
 
 
+  weather_collector:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.weather_collector
+    restart: unless-stopped
+    depends_on:
+      gtfs_db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    secrets:
+      - db_password_weather_collector
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_password_weather_collector
+      DB_HOST: gtfs_db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${WEATHER_COLLECTOR_USER}
+
 secrets:
   db_password:
     file: ../secrets/db_password
@@ -171,6 +191,8 @@ secrets:
     file: ../secrets/db_password_importer
   db_password_rt_poller:
     file: ../secrets/db_password_rt_poller
+  db_password_weather_collector:
+    file: ../secrets/db_password_weather_collector
   redis_password:
     file: ../secrets/redis_password
 
