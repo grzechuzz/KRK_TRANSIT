@@ -71,8 +71,8 @@ MAX_DATE_RANGE_DAYS: int = 365
 USER_AGENT: str = "KRKTransit/1.0"
 
 # Weather Collector
-WEATHER_COLLECT_INTERVAL: int = 3600 # 1 hour between fetches
-WEATHER_BACKFILL_DAYS: int = 21 # max days to backfill on first run (Open-Meteo limit)
+WEATHER_COLLECT_INTERVAL: int = 3600  # 1 hour between fetches
+WEATHER_BACKFILL_DAYS: int = 21  # max days to backfill on first run (Open-Meteo limit)
 WEATHER_FETCH_TIMEOUT_SECONDS: int = 30
 WEATHER_FETCH_MAX_RETRIES: int = 3
 WEATHER_FETCH_RETRY_BACKOFF_SECONDS: list[int] = [5, 30, 120]
