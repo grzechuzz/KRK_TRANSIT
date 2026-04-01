@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 import redis
+
 from app.common.constants import SUBSCRIBER_TIMEOUT, VEHICLE_POSITIONS_CHANNEL
 from app.common.models.enums import Agency, VehicleStatus
 from app.common.models.gtfs_realtime import VehiclePosition

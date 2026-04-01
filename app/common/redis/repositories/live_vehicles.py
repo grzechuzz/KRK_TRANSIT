@@ -1,4 +1,5 @@
 import redis
+
 from app.common.constants import REDIS_LIVE_VEHICLE_TTL
 from app.common.redis import serializer
 from app.common.redis.schemas import LiveVehiclePosition

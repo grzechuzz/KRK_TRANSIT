@@ -51,6 +51,7 @@ select = ["E", "F", "I", "UP", "N", "W"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+known-third-party = ["redis"]
 
 [tool.mypy]
 python_version = "3.13"

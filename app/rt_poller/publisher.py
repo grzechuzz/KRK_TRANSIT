@@ -1,8 +1,8 @@
 import logging
 
+import redis
 from cachetools import LRUCache
 
-import redis
 from app.common.constants import CACHE_MAX_STOP_ID_TO_SEQ, VEHICLE_POSITIONS_CHANNEL
 from app.common.db.connection import get_session
 from app.common.db.repositories.gtfs_static import GtfsStaticRepository

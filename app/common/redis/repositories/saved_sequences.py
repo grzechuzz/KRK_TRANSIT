@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 import redis
+
 from app.common.constants import REDIS_SAVED_SEQS_TTL
 from app.common.redis import serializer
 from app.common.redis.schemas import SavedSequenceData

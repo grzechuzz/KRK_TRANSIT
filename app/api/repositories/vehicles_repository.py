@@ -1,4 +1,5 @@
 import redis
+
 from app.common.redis.repositories.live_vehicles import LiveVehiclePositionRepository
 from app.common.redis.schemas import LiveVehiclePosition
 
