@@ -18,6 +18,10 @@ class SavedSequencesRepository:
     def is_saved(self, agency: str, trip_id: str, service_date: date, stop_sequence: int) -> bool:
         return bool(self._redis.hexists(self._key(agency, trip_id, service_date), str(stop_sequence)))
 
+    def get_all_sequences(self, agency: str, trip_id: str, service_date: date) -> set[int]:
+        keys: list[bytes] = self._redis.hkeys(self._key(agency, trip_id, service_date))  # type: ignore[assignment]
+        return {int(k) for k in keys}
+
     def mark_saved(
         self,
         agency: str,
@@ -29,8 +33,10 @@ class SavedSequencesRepository:
     ) -> None:
         key = self._key(agency, trip_id, service_date)
         value = serializer.encode_saved_sequence(SavedSequenceData(delay=delay_seconds, event_time=event_time))
-        self._redis.hset(key, str(stop_sequence), value)  # type: ignore[arg-type]
-        self._redis.expire(key, REDIS_SAVED_SEQS_TTL)
+        pipe = self._redis.pipeline(transaction=False)
+        pipe.hset(key, str(stop_sequence), value)  # type: ignore[arg-type]
+        pipe.expire(key, REDIS_SAVED_SEQS_TTL)
+        pipe.execute()
 
     def get_saved_data(
         self, agency: str, trip_id: str, service_date: date, stop_sequence: int

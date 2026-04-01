@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, cast
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
@@ -13,10 +14,8 @@ class WeatherRepository:
         self._session = session
 
     def get_latest_observed_at(self) -> datetime | None:
-        result = (
-            self._session.query(WeatherObservation.observed_at).order_by(WeatherObservation.observed_at.desc()).first()
-        )
-        return result[0] if result else None
+        stmt = select(WeatherObservation.observed_at).order_by(WeatherObservation.observed_at.desc()).limit(1)
+        return self._session.execute(stmt).scalar_one_or_none()
 
     def upsert_observations(self, observations: list[WeatherObservation]) -> int:
         if not observations:

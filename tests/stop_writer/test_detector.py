@@ -57,7 +57,10 @@ def test_seq_jump_detects_missed_stops(detector, mock_vehicle_state, mock_trip_u
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
 
     cached_time = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
-    mock_trip_updates.get_arrival.side_effect = lambda a, t, seq: cached_time if seq in (3, 4) else None
+    mock_trip_updates.get.return_value = make_trip_update_cache(
+        trip_id="trip_1",
+        stops={3: (cached_time, cached_time), 4: (cached_time, cached_time)},
+    )
 
     vp = make_vehicle_position(status=VehicleStatus.IN_TRANSIT_TO, stop_sequence=5)
 
@@ -73,9 +76,11 @@ def test_seq_jump_skips_saved(detector, mock_vehicle_state, mock_trip_updates, m
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
 
     cached_time = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
-    mock_trip_updates.get_arrival.return_value = cached_time
-
-    mock_saved_seqs.is_saved.side_effect = lambda a, t, d, seq: seq == 3
+    mock_trip_updates.get.return_value = make_trip_update_cache(
+        trip_id="trip_1",
+        stops={3: (cached_time, cached_time), 4: (cached_time, cached_time)},
+    )
+    mock_saved_seqs.get_all_sequences.return_value = {3}
 
     vp = make_vehicle_position(status=VehicleStatus.IN_TRANSIT_TO, stop_sequence=5)
 
@@ -88,7 +93,7 @@ def test_seq_jump_skips_saved(detector, mock_vehicle_state, mock_trip_updates, m
 
 def test_seq_jump_skips_no_cached_time(detector, mock_vehicle_state, mock_trip_updates):
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
-    mock_trip_updates.get_arrival.return_value = None
+    mock_trip_updates.get.return_value = None
 
     vp = make_vehicle_position(status=VehicleStatus.IN_TRANSIT_TO, stop_sequence=5)
 
@@ -227,7 +232,10 @@ def test_stopped_at_plus_seq_jump_combined(detector, mock_vehicle_state, mock_tr
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
 
     cached_time = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
-    mock_trip_updates.get_arrival.side_effect = lambda a, t, seq: cached_time if seq in (3, 4) else None
+    mock_trip_updates.get.return_value = make_trip_update_cache(
+        trip_id="trip_1",
+        stops={3: (cached_time, cached_time), 4: (cached_time, cached_time)},
+    )
 
     vp = make_vehicle_position(status=VehicleStatus.STOPPED_AT, stop_sequence=5)
 

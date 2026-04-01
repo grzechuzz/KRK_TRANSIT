@@ -19,6 +19,10 @@ class LiveVehiclePositionRepository:
         key = self._key(pos.agency, pos.license_plate)
         self._redis.setex(key, REDIS_LIVE_VEHICLE_TTL, serializer.encode(pos))
 
+    def pipe_save(self, pipe: redis.client.Pipeline, pos: LiveVehiclePosition) -> None:
+        key = self._key(pos.agency, pos.license_plate)
+        pipe.setex(key, REDIS_LIVE_VEHICLE_TTL, serializer.encode(pos))
+
     def get_all(self) -> list[LiveVehiclePosition]:
         # keys: e.g. [b"lvp:mpk:1234", b"lvp:mobilis:5678", ...]  — one key per active vehicle
         keys = list(self._redis.scan_iter("lvp:*"))

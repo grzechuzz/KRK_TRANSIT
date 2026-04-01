@@ -137,6 +137,7 @@ def mock_trip_updates(mocker: MockerFixture):
 def mock_saved_seqs(mocker: MockerFixture):
     mock = mocker.MagicMock()
     mock.is_saved.return_value = False
+    mock.get_all_sequences.return_value = set()
     mock.get_saved_data.return_value = None
     return mock
 

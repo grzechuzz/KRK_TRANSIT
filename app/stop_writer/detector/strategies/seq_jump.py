@@ -30,14 +30,20 @@ class SeqJumpStrategy:
         if curr_seq <= prev_seq:
             return []
 
+        already_saved = self._saved_seqs.get_all_sequences(ctx.agency_str, ctx.vp.trip_id, ctx.service_date)
+        trip_cache = self._trip_updates.get(ctx.agency_str, ctx.vp.trip_id)
+
         events: list[StopEvent] = []
         for missed_seq in range(prev_seq, curr_seq):
-            if self._saved_seqs.is_saved(ctx.agency_str, ctx.vp.trip_id, ctx.service_date, missed_seq):
+            if missed_seq in already_saved:
                 continue
 
-            event_time = self._trip_updates.get_arrival(ctx.agency_str, ctx.vp.trip_id, missed_seq)
-            if not event_time:
+            if trip_cache is None:
                 continue
+            cached_stop = trip_cache.stops.get(missed_seq)
+            if cached_stop is None:
+                continue
+            event_time = cached_stop.last_seen_arrival
 
             missed_stop_time = self._cache.get_stop_time(ctx.vp.trip_id, missed_seq)
             if not missed_stop_time:

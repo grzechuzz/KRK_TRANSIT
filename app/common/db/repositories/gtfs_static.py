@@ -1,7 +1,7 @@
 from sqlalchemy import Row, func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.common.db.models import CurrentShape, CurrentStop, CurrentStopTime, CurrentTrip
+from app.common.db.models import CurrentRoute, CurrentShape, CurrentStop, CurrentStopTime, CurrentTrip
 
 
 class GtfsStaticRepository:
@@ -29,9 +29,11 @@ class GtfsStaticRepository:
         return {st.stop_id: st.stop_sequence for st in stop_times}
 
     def get_all_trip_info(self) -> dict[str, tuple[str, str, str | None]]:
-        stmt = select(CurrentTrip).options(joinedload(CurrentTrip.route))
-        trips = self._session.scalars(stmt).unique().all()
-        return {t.trip_id: (t.route.route_short_name, t.headsign or "", t.shape_id) for t in trips}
+        stmt = select(
+            CurrentTrip.trip_id, CurrentRoute.route_short_name, CurrentTrip.headsign, CurrentTrip.shape_id
+        ).join(CurrentRoute, CurrentTrip.route_id == CurrentRoute.route_id)
+        rows = self._session.execute(stmt).all()
+        return {row.trip_id: (row.route_short_name, row.headsign or "", row.shape_id) for row in rows}
 
     def get_shape_points(self, shape_id: str) -> list[CurrentShape]:
         stmt = select(CurrentShape).where(CurrentShape.shape_id == shape_id).order_by(CurrentShape.shape_pt_sequence)
