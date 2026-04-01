@@ -32,6 +32,7 @@ class Publisher:
         """
         positions = parse_vehicle_positions(pb_data, feed)
 
+        pipe = self._redis.pipeline(transaction=False)
         for pos in positions:
             message = VehiclePositionMessage(
                 agency=pos.agency.value,
@@ -43,7 +44,7 @@ class Publisher:
                 status=pos.status.value if pos.status else None,
                 timestamp=pos.timestamp.isoformat(),
             )
-            self._redis.publish(VEHICLE_POSITIONS_CHANNEL, serializer.encode_vp_message(message))
+            pipe.publish(VEHICLE_POSITIONS_CHANNEL, serializer.encode_vp_message(message))
 
             if pos.has_position and pos.license_plate:
                 live = LiveVehiclePosition(
@@ -55,7 +56,8 @@ class Publisher:
                     bearing=pos.bearing,
                     timestamp=pos.timestamp,
                 )
-                self._live_vehicles_repository.save(live)
+                self._live_vehicles_repository.pipe_save(pipe, live)
+        pipe.execute()
 
         return len(positions)
 
