@@ -1,9 +1,13 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from app.api.validation import validate_date_range
+from app.common.constants import TIMEZONE
 from app.common.exceptions import ValidationError
+
+_WARSAW = ZoneInfo(TIMEZONE)
 
 
 def test_valid_range_passes():
@@ -41,7 +45,7 @@ def test_range_exactly_max_days_passes():
 
 
 def test_future_end_date_raises():
-    today = date.today()
+    today = datetime.now(_WARSAW).date()
     future = today + timedelta(days=1)
 
     with pytest.raises(ValidationError) as exc_info:
@@ -52,5 +56,5 @@ def test_future_end_date_raises():
 
 
 def test_today_as_end_date_passes():
-    today = date.today()
+    today = datetime.now(_WARSAW).date()
     validate_date_range(today, today)
