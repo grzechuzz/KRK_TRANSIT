@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Any, cast
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from app.common.db.models import WeatherObservation
@@ -42,5 +44,5 @@ class WeatherRepository:
             )
             .on_conflict_do_nothing(index_elements=["observed_at"])
         )
-        result = self._session.execute(stmt)
+        result: CursorResult[Any] = cast(CursorResult[Any], self._session.execute(stmt))
         return result.rowcount

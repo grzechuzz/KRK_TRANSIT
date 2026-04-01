@@ -10,7 +10,6 @@ from app.common.logging import setup_logging
 from app.weather_collector.fetcher import fetch_weather
 from app.weather_collector.repository import WeatherRepository
 
-setup_logging()
 logger = logging.getLogger(__name__)
 
 shutdown_event = Event()
@@ -60,6 +59,7 @@ def run_collector() -> None:
 
 
 def main() -> None:
+    setup_logging()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 

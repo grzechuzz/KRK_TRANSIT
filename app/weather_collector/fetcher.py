@@ -36,7 +36,7 @@ _HOURLY_VARS = (
 
 def fetch_weather(past_days: int) -> list[WeatherObservation]:
     """Fetch hourly weather from Open-Meteo for Kraków. Retries up to 3 times on failure."""
-    params = {
+    params: dict[str, str | int | float] = {
         "latitude": _KRAKOW_LAT,
         "longitude": _KRAKOW_LON,
         "hourly": _HOURLY_VARS,
