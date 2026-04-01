@@ -14,7 +14,6 @@ from app.stop_writer.detector import StopEventDetector
 from app.stop_writer.subscriber import Subscriber
 from app.stop_writer.writer import BatchWriter
 
-setup_logging()
 logger = logging.getLogger(__name__)
 
 shutdown_event = Event()
@@ -60,6 +59,7 @@ def run_writer() -> None:
 
 
 def main() -> None:
+    setup_logging()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 

@@ -109,7 +109,7 @@ _DELETE_ORDER = [
 
 def _delete_agency_data(session: Session, agency_id: str) -> None:
     """Delete all GTFS data for a specific agency."""
-    logger.info(f"[{agency_id}] Deleting old data...")
+    logger.info("[%s] Deleting old data...", agency_id)
 
     raw_conn = session.connection().connection.dbapi_connection
     if raw_conn is None:
@@ -120,7 +120,7 @@ def _delete_agency_data(session: Session, agency_id: str) -> None:
         stmt = sql.SQL("DELETE FROM {} WHERE agency_id = %s").format(sql.Identifier("gtfs_static", table_name))
         cursor.execute(stmt, (agency_id,))
 
-    logger.info(f"[{agency_id}] Delete complete")
+    logger.info("[%s] Delete complete", agency_id)
 
 
 def _copy_to_table(session: Session, table_name: str, columns: list[str], data: io.StringIO) -> None:
@@ -145,7 +145,7 @@ def _load_table(
     session: Session, zf: zipfile.ZipFile, mapping: TableMapping, agency_id: str, prefix: Callable[[str], str]
 ) -> None:
     """Load a single GTFS file into its corresponding database table."""
-    logger.info(f"[{agency_id}] Loading {mapping.gtfs_file}...")
+    logger.info("[%s] Loading %s...", agency_id, mapping.gtfs_file)
 
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -161,7 +161,7 @@ def _load_table(
 def load_gtfs_zip(session: Session, zip_path: Path, feed: FeedConfig) -> None:
     """Load GTFS static data."""
     agency_id = feed.agency.value
-    logger.info(f"[{agency_id}] Opening ZIP: {zip_path}")
+    logger.info("[%s] Opening ZIP: %s", agency_id, zip_path)
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         _delete_agency_data(session, agency_id)
@@ -169,4 +169,4 @@ def load_gtfs_zip(session: Session, zip_path: Path, feed: FeedConfig) -> None:
         for mapping in TABLE_MAPPINGS:
             _load_table(session, zf, mapping, agency_id, feed.prefix_id)
 
-        logger.info(f"[{agency_id}] All data loaded, committing...")
+        logger.info("[%s] All data loaded, committing...", agency_id)

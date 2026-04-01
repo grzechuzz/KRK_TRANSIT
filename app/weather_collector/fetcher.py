@@ -59,7 +59,7 @@ def fetch_weather(past_days: int) -> list[WeatherObservation]:
         except Exception as e:
             last_exc = e
             if attempt < WEATHER_FETCH_MAX_RETRIES:
-                logger.warning(f"Open-Meteo fetch failed, retrying in {backoff}s")
+                logger.warning("Open-Meteo fetch failed, retrying in %ds", backoff)
                 time.sleep(backoff)
     else:
         raise last_exc

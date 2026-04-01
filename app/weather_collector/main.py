@@ -26,9 +26,9 @@ def _collect(past_days: int) -> None:
         with get_session() as session:
             repo = WeatherRepository(session)
             count = repo.upsert_observations(observations)
-        logger.info(f"Stored {count} new observations (fetched {len(observations)} total, past_days={past_days})")
+        logger.info("Stored %d new observations (fetched %d total, past_days=%d)", count, len(observations), past_days)
     except Exception as e:
-        logger.exception(f"Failed to collect weather data: {e}")
+        logger.exception("Failed to collect weather data: %s", e)
 
 
 def _resolve_past_days() -> int:
@@ -37,7 +37,7 @@ def _resolve_past_days() -> int:
         latest = WeatherRepository(session).get_latest_observed_at()
 
     if latest is None:
-        logger.info(f"No observations found, backfilling {WEATHER_BACKFILL_DAYS} days")
+        logger.info("No observations found, backfilling %d days", WEATHER_BACKFILL_DAYS)
         return WEATHER_BACKFILL_DAYS
 
     from datetime import datetime
@@ -45,7 +45,7 @@ def _resolve_past_days() -> int:
     tz = ZoneInfo(TIMEZONE)
     gap_days = (datetime.now(tz) - latest).days + 2
     past_days = min(gap_days, WEATHER_BACKFILL_DAYS)
-    logger.info(f"Latest observation: {latest.isoformat()}, fetching past {past_days} days")
+    logger.info("Latest observation: %s, fetching past %d days", latest.isoformat(), past_days)
     return past_days
 
 

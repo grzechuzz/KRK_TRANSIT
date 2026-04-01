@@ -1,10 +1,10 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from app.common.constants import MAX_DATE_RANGE_DAYS
+from app.common.constants import MAX_DATE_RANGE_DAYS, TIMEZONE
 from app.common.exceptions import ValidationError
 
-_WARSAW = ZoneInfo("Europe/Warsaw")
+_WARSAW = ZoneInfo(TIMEZONE)
 
 
 def validate_date_range(start_date: date, end_date: date) -> None:

@@ -1,8 +1,11 @@
 import logging
 import shutil
-import time
+import signal
 from pathlib import Path
+from threading import Event
+from typing import Any
 
+from app.common.config import get_config
 from app.common.constants import IMPORT_CYCLE_SLEEP, REDIS_KEY_GTFS_READY
 from app.common.db.connection import get_session
 from app.common.db.repositories.gtfs_meta import GtfsMetaRepository
@@ -15,64 +18,74 @@ from app.importer.load import load_gtfs_zip
 
 logger = logging.getLogger(__name__)
 
-ARCHIVE_DIR = Path("data")
+shutdown_event = Event()
+
+
+def signal_handler(*args: Any) -> None:
+    logger.info("Shutdown signal received")
+    shutdown_event.set()
 
 
 def run_import() -> None:
     """Run GTFS static import for all configured feeds."""
     feed_configs = get_all_feed_configs()
-    logger.info(f"Starting import for {len(feed_configs)} feeds")
+    logger.info("Starting import for %d feeds", len(feed_configs))
 
     for feed_config in feed_configs:
         agency_name = feed_config.agency.value
 
         try:
-            logger.info(f"Downloading {agency_name} from {feed_config.static_url}")
+            logger.info("Downloading %s from %s", agency_name, feed_config.static_url)
             zip_path = download_gtfs_zip(feed_config)
             new_hash = sha256_file(zip_path)
-            logger.info(f"Downloaded {agency_name}, hash: {new_hash[:16]}...")
+            logger.info("Downloaded %s, hash: %s...", agency_name, new_hash[:16])
 
             with get_session() as session:
                 meta_repo = GtfsMetaRepository(session)
                 current_hash = meta_repo.get_current_hash(feed_config.agency)
 
                 if current_hash == new_hash:
-                    logger.info(f"Skipping {agency_name} - hash unchanged")
+                    logger.info("Skipping %s - hash unchanged", agency_name)
                     Path(zip_path).unlink()
                     continue
 
-                ARCHIVE_DIR.mkdir(exist_ok=True)
-                archive_path = ARCHIVE_DIR / f"{new_hash}.zip"
+                archive_dir = get_config().data_dir
+                archive_dir.mkdir(exist_ok=True)
+                archive_path = archive_dir / f"{new_hash}.zip"
                 if not archive_path.exists():
                     shutil.copy2(zip_path, archive_path)
-                    logger.info(f"Archived {agency_name} as {new_hash[:16]}...zip")
+                    logger.info("Archived %s as %s...zip", agency_name, new_hash[:16])
 
-                logger.info(f"Loading {agency_name} into database...")
+                logger.info("Loading %s into database...", agency_name)
                 load_gtfs_zip(session, zip_path, feed_config)
                 meta_repo.set_current_hash(feed_config.agency, new_hash)
-                logger.info(f"Successfully imported {agency_name}")
+                logger.info("Successfully imported %s", agency_name)
 
             Path(zip_path).unlink()
 
         except Exception as e:
-            logger.exception(f"Failed to import {agency_name}: {e}")
+            logger.exception("Failed to import %s: %s", agency_name, e)
 
 
 def main() -> None:
     """Run import every hour in a loop"""
     setup_logging()
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     logger.info("GTFS Importer started")
 
-    while True:
+    while not shutdown_event.is_set():
         try:
             run_import()
             get_client().set(REDIS_KEY_GTFS_READY, "1")
             logger.info("GTFS ready signal set")
             logger.info("Import cycle completed, sleeping for 1 hour")
         except Exception as e:
-            logger.exception(f"Import cycle failed: {e}")
+            logger.exception("Import cycle failed: %s", e)
 
-        time.sleep(IMPORT_CYCLE_SLEEP)
+        shutdown_event.wait(timeout=IMPORT_CYCLE_SLEEP)
+
+    logger.info("Importer shutdown complete")
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ class Subscriber:
                 timestamp=datetime.fromisoformat(msg.timestamp),
             )
         except Exception as e:
-            logger.exception(f"Failed to parse message: {e}")
+            logger.exception("Failed to parse message: %s", e)
             return None
 
     def _reconnect(self) -> None:

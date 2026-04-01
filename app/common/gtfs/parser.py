@@ -86,7 +86,7 @@ def parse_trip_updates(pb_data: bytes, feed: FeedConfig) -> list[TripUpdate]:
     Parse trip updates from TripUpdates.pb feed.
     """
     if not pb_data or len(pb_data) < PB_MIN_PAYLOAD_BYTES:
-        logger.warning(f"TripUpdates {feed.agency}: empty or too short ({len(pb_data) if pb_data else 0} bytes)")
+        logger.warning("TripUpdates %s: empty or too short (%d bytes)", feed.agency, len(pb_data) if pb_data else 0)
         return []
 
     msg = gtfs_realtime_pb2.FeedMessage()
@@ -94,7 +94,7 @@ def parse_trip_updates(pb_data: bytes, feed: FeedConfig) -> list[TripUpdate]:
         msg.ParseFromString(pb_data)
     except Exception as e:
         preview = pb_data[:50].hex() if pb_data else "None"
-        logger.warning(f"TripUpdates {feed.agency}: parse failed, data preview: {preview}, error: {e}")
+        logger.warning("TripUpdates %s: parse failed, data preview: %s, error: %s", feed.agency, preview, e)
         return []
 
     feed_ts = msg.header.timestamp if msg.header.timestamp else None

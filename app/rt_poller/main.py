@@ -34,11 +34,11 @@ def _poll_feed(feed: FeedConfig, publisher: Publisher, breaker: CircuitBreaker) 
         tu_count = publisher.process_trip_updates(feed, tu_data)
 
         breaker.record_success()
-        logger.info(f"{feed.agency.value}: VP={vp_count}, TU={tu_count}")
+        logger.info("%s: VP=%d, TU=%d", feed.agency.value, vp_count, tu_count)
 
     except Exception as e:
         breaker.record_failure()
-        logger.warning(f"Error polling {feed.agency.value}: {e}")
+        logger.warning("Error polling %s: %s", feed.agency.value, e)
 
 
 def run_poller() -> None:
@@ -48,7 +48,7 @@ def run_poller() -> None:
     feeds = get_all_feed_configs()
     breakers = {feed.agency: CircuitBreaker() for feed in feeds}
 
-    logger.info(f"Starting poller for {len(feeds)} feeds")
+    logger.info("Starting poller for %d feeds", len(feeds))
 
     while not shutdown_event.is_set():
         for feed in feeds:
