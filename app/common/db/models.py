@@ -143,3 +143,21 @@ class StopEventModel(Base):
     static_hash: Mapped[str] = mapped_column(Text, nullable=False)
     max_stop_sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=text("now()"))
+
+
+class WeatherObservation(Base):
+    __tablename__ = "hourly_observations"
+    __table_args__ = {"schema": "weather"}
+
+    observed_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), primary_key=True)
+    temperature_c: Mapped[float] = mapped_column(Double, nullable=False)
+    precipitation_mm: Mapped[float] = mapped_column(Double, nullable=False)
+    rain_mm: Mapped[float] = mapped_column(Double, nullable=False)
+    snowfall_cm: Mapped[float] = mapped_column(Double, nullable=False)
+    snow_depth_cm: Mapped[float] = mapped_column(Double, nullable=False)
+    wind_speed_kmh: Mapped[float] = mapped_column(Double, nullable=False)
+    wind_gusts_kmh: Mapped[float] = mapped_column(Double, nullable=False)
+    cloud_cover_pct: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    visibility_m: Mapped[float] = mapped_column(Double, nullable=False)
+    is_day: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    weather_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)

@@ -1,0 +1,18 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml /app/pyproject.toml
+COPY app/__init__.py /app/app/__init__.py
+COPY app/common /app/app/common
+COPY app/weather_collector /app/app/weather_collector
+
+RUN pip install --no-cache-dir .
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "-m", "app.weather_collector.main"]

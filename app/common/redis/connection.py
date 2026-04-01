@@ -8,6 +8,8 @@ from app.common.config import get_config
 @lru_cache
 def get_client() -> redis.Redis:
     config = get_config()
+    if config.redis is None:
+        raise RuntimeError("Redis is not configured (REDIS_PASSWORD not set)")
 
     return redis.Redis(
         host=config.redis.host,
