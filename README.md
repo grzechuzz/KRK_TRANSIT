@@ -43,14 +43,15 @@ Dokumentacja: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
 
 ## Architektura
 
-System składa się z czterech serwisów.
+System składa się z pięciu serwisów.
 
 | Serwis | Rola |
 |---|---|
 | **Importer** | Pobiera i ładuje dane GTFS Static (trasy, przystanki, rozkłady, kształty tras) dla obu przewoźników. Wykrywa zmiany w plikach poprzez hashowanie SHA-256. |
-| **RT Poller** | Pobiera dane z `VehiclePositions.pb` i `TripUpdates.pb` co 5 sekund. Publikuje przetworzone pozycje pojazdów na Redis Pub/Sub i cache'uje predykcje z trip updates. |
+| **RT Poller** | Pobiera dane z `VehiclePositions.pb` i `TripUpdates.pb`. Publikuje przetworzone pozycje pojazdów na Redis Pub/Sub i cache'uje predykcje z trip updates. |
 | **Stop Writer** | Nasłuchuje pozycji pojazdów z Redis Pub/Sub. Wykrywa zdarzenia na przystankach trzema metodami (patrz niżej). Zapisuje zdarzenia do bazy danych. |
 | **API** | Udostępnia statystyki opóźnień, dane punktualności, trendy dzienne, pozycje pojazdów na żywo i geometrię tras. Cache'uje odpowiedzi dotyczące statystyk w Redisie. |
+| **Weather Collector** | Pobiera historyczne dane pogodowe z Open-Meteo i zapisuje do bazy danych. |
 
 ## Detekcja zdarzeń na przystankach
 
@@ -70,7 +71,6 @@ Zdarzenia estymowane (`SEQ_JUMP`, `TIMEOUT`) są dostępne opcjonalnie przez par
 - msgspec (serializacja), protobuf + gtfs-realtime-bindings (parsowanie GTFS)
 - SQLAlchemy 2.0 
 - Alembic
-- Caddy (serwer WWW i reverse proxy z automatyczną obsługą HTTPS) 
 - GitHub Actions (CI)
 - Docker
 
@@ -87,6 +87,7 @@ git clone https://github.com/grzechuzz/KRK_TRANSIT.git
    - `secrets/db_password_api` (tylko odczyt dla API)
    - `secrets/db_password_writer` (zapis danych RT)
    - `secrets/db_password_importer` (zapis danych GTFS)
+   - `secrets/db_password_weather_collector` (zapis danych pogodowych)
    - `secrets/redis_password`
    - `redis/users.acl`
    
@@ -104,6 +105,7 @@ git clone https://github.com/grzechuzz/KRK_TRANSIT.git
    IMPORTER_USER=
    WRITER_USER=
    API_READER_USER=
+   WEATHER_COLLECTOR_USER=
    REDIS_USER=
    ```
    

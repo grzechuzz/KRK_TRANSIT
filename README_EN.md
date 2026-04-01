@@ -39,14 +39,15 @@ Documentation: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
 
 ## Architecture
 
-The system consists of four services.
+The system consists of five services.
 
 | Service | Role |
 |---|---|
 | **Importer** | Downloads and loads GTFS Static data (routes, stops, schedules, route shapes) for both operators. Detects file changes via SHA-256 hashing. |
-| **RT Poller** | Fetches `VehiclePositions.pb` and `TripUpdates.pb` feeds every 5 seconds. Publishes parsed vehicle positions to Redis Pub/Sub and caches trip update predictions. |
+| **RT Poller** | Fetches `VehiclePositions.pb` and `TripUpdates.pb` feeds. Publishes parsed vehicle positions to Redis Pub/Sub and caches trip update predictions. |
 | **Stop Writer** | Listens for vehicle positions from Redis Pub/Sub. Detects stop events using three methods (see below). Writes events to the database. |
 | **API** | Serves delay statistics, punctuality data, daily trends, live vehicle positions and route geometry. Caches statistics responses in Redis. |
+| **Weather Collector** | Fetches historical weather data from Open-Meteo and stores it in the database. |
 
 ## Stop Event Detection
 
@@ -66,7 +67,6 @@ Estimated events (`SEQ_JUMP`, `TIMEOUT`) are available optionally via the `?incl
 - msgspec (serialization), protobuf + gtfs-realtime-bindings (GTFS parsing)
 - SQLAlchemy 2.0
 - Alembic
-- Caddy (web server and reverse proxy with automatic HTTPS)
 - GitHub Actions (CI)
 - Docker
 
@@ -83,6 +83,7 @@ git clone https://github.com/grzechuzz/KRK_TRANSIT.git
    - `secrets/db_password_api` (API read-only)
    - `secrets/db_password_writer` (RT data writer)
    - `secrets/db_password_importer` (GTFS data writer)
+   - `secrets/db_password_weather_collector` (weather data writer)
    - `secrets/redis_password`
    - `redis/users.acl`
    
@@ -99,6 +100,7 @@ git clone https://github.com/grzechuzz/KRK_TRANSIT.git
    IMPORTER_USER=
    WRITER_USER=
    API_READER_USER=
+   WEATHER_COLLECTOR_USER=
    REDIS_USER=
    ```
    
