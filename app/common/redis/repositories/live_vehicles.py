@@ -20,11 +20,13 @@ class LiveVehiclePositionRepository:
         self._redis.setex(key, REDIS_LIVE_VEHICLE_TTL, serializer.encode(pos))
 
     def get_all(self) -> list[LiveVehiclePosition]:
-        result: list[LiveVehiclePosition] = []
-        keys: list[bytes] = self._redis.keys("lvp:*")  # type: ignore[assignment]
+        # keys: e.g. [b"lvp:mpk:1234", b"lvp:mobilis:5678", ...]  — one key per active vehicle
+        keys = list(self._redis.scan_iter("lvp:*"))
         if not keys:
-            return result
+            return []
+        # values: raw msgpack bytes per key, None if key expired between SCAN and MGET
         values: list[bytes | None] = self._redis.mget(keys)  # type: ignore[assignment]
+        result: list[LiveVehiclePosition] = []
         for raw in values:
             if raw is None:
                 continue
