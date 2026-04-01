@@ -1,9 +1,9 @@
-import json
 from datetime import date, datetime
 
 import redis
-
 from app.common.constants import REDIS_SAVED_SEQS_TTL
+from app.common.redis import serializer
+from app.common.redis.schemas import SavedSequenceData
 
 
 class SavedSequencesRepository:
@@ -27,8 +27,8 @@ class SavedSequencesRepository:
         event_time: datetime,
     ) -> None:
         key = self._key(agency, trip_id, service_date)
-        value = json.dumps({"delay": delay_seconds, "event_time": event_time.isoformat()})
-        self._redis.hset(key, str(stop_sequence), value)
+        value = serializer.encode_saved_sequence(SavedSequenceData(delay=delay_seconds, event_time=event_time))
+        self._redis.hset(key, str(stop_sequence), value)  # type: ignore[arg-type]
         self._redis.expire(key, REDIS_SAVED_SEQS_TTL)
 
     def get_saved_data(
@@ -37,5 +37,8 @@ class SavedSequencesRepository:
         raw: bytes | None = self._redis.hget(self._key(agency, trip_id, service_date), str(stop_sequence))  # type: ignore[assignment]
         if not raw:
             return None
-        data = json.loads(raw)
-        return data["delay"], datetime.fromisoformat(data["event_time"])
+        try:
+            data = serializer.decode_saved_sequence(raw)
+            return data.delay, data.event_time
+        except Exception:
+            return None
