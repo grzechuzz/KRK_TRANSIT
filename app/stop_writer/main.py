@@ -10,6 +10,7 @@ from app.common.redis.connection import get_client
 from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
 from app.common.redis.repositories.trip_updates import TripUpdatesRepository
 from app.common.redis.repositories.vehicle_state import VehicleStateRepository
+from app.common.sentry import setup_sentry
 from app.stop_writer.detector import StopEventDetector
 from app.stop_writer.subscriber import Subscriber
 from app.stop_writer.writer import BatchWriter
@@ -59,6 +60,7 @@ def run_writer() -> None:
 
 
 def main() -> None:
+    setup_sentry("stop_writer")
     setup_logging()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)

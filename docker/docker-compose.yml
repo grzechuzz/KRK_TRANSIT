@@ -70,6 +70,8 @@ services:
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
     volumes:
       - ../data:/app/data
 
@@ -100,6 +102,8 @@ services:
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
 
   stop_writer:
     build:
@@ -128,6 +132,8 @@ services:
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
 
   api:
     build:
@@ -152,6 +158,8 @@ services:
       REDIS_USERNAME: ${REDIS_USER}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -179,6 +187,8 @@ services:
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${WEATHER_COLLECTOR_USER}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
 
 secrets:
   db_password:

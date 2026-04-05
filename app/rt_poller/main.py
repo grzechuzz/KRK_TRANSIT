@@ -8,6 +8,7 @@ from app.common.feeds import FeedConfig, get_all_feed_configs
 from app.common.gtfs.readiness import wait_for_gtfs_ready
 from app.common.logging import setup_logging
 from app.common.redis.connection import get_client
+from app.common.sentry import capture_exception, setup_sentry
 from app.rt_poller.circuit_breaker import CircuitBreaker
 from app.rt_poller.fetcher import fetch_trip_updates, fetch_vehicle_positions
 from app.rt_poller.publisher import Publisher
@@ -37,8 +38,17 @@ def _poll_feed(feed: FeedConfig, publisher: Publisher, breaker: CircuitBreaker) 
         logger.info("%s: VP=%d, TU=%d", feed.agency.value, vp_count, tu_count)
 
     except Exception as e:
-        breaker.record_failure()
+        circuit_opened = breaker.record_failure()
         logger.warning("Error polling %s: %s", feed.agency.value, e)
+        if circuit_opened:
+            capture_exception(
+                e,
+                tags={
+                    "agency": feed.agency.value,
+                    "component": "rt_poller",
+                    "failure_state": "circuit_opened",
+                },
+            )
 
 
 def run_poller() -> None:
@@ -60,6 +70,7 @@ def run_poller() -> None:
 
 
 def main() -> None:
+    setup_sentry("rt_poller")
     setup_logging()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)

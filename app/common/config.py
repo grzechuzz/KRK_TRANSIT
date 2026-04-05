@@ -47,6 +47,8 @@ class AppConfig:
     redis: RedisConfig | None
     timezone: str
     data_dir: Path
+    sentry_dsn: str | None
+    sentry_environment: str | None
 
 
 @lru_cache(maxsize=1)
@@ -78,4 +80,6 @@ def get_config() -> AppConfig:
         redis=redis,
         timezone=os.getenv("TZ", TIMEZONE),
         data_dir=Path(os.getenv("DATA_DIR", "/app/data")),
+        sentry_dsn=os.getenv("SENTRY_DSN") or None,
+        sentry_environment=os.getenv("SENTRY_ENVIRONMENT") or None,
     )

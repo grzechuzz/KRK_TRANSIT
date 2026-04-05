@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from app.common.constants import TIMEZONE, WEATHER_BACKFILL_DAYS, WEATHER_COLLECT_INTERVAL
 from app.common.db.connection import get_session
 from app.common.logging import setup_logging
+from app.common.sentry import setup_sentry
 from app.weather_collector.fetcher import fetch_weather
 from app.weather_collector.repository import WeatherRepository
 
@@ -59,6 +60,7 @@ def run_collector() -> None:
 
 
 def main() -> None:
+    setup_sentry("weather_collector")
     setup_logging()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)

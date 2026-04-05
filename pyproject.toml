@@ -19,7 +19,8 @@ dependencies = [
     "fastapi>=0.128.6",
     "uvicorn[standard]>=0.40.0",
     "cachetools>=7.0.0",
-    "slowapi>=0.1.9"
+    "slowapi>=0.1.9",
+    "sentry-sdk[fastapi]>=2.0"
 ]
 
 [project.optional-dependencies]

@@ -27,12 +27,16 @@ class CircuitBreaker:
         self._failures = 0
         self._open_until = 0.0
 
-    def record_failure(self) -> None:
+    def record_failure(self) -> bool:
+        was_open = self.is_open
         self._failures += 1
         if self._failures >= self._failure_threshold:
             self._open_until = time.monotonic() + self._cooldown_seconds
-            logger.warning(
-                "Circuit opened – %d consecutive failures, backing off for %ds",
-                self._failures,
-                self._cooldown_seconds,
-            )
+            if not was_open:
+                logger.warning(
+                    "Circuit opened – %d consecutive failures, backing off for %ds",
+                    self._failures,
+                    self._cooldown_seconds,
+                )
+                return True
+        return False

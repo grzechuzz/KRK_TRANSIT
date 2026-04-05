@@ -13,6 +13,7 @@ from app.common.feeds import get_all_feed_configs
 from app.common.gtfs.hashing import sha256_file
 from app.common.logging import setup_logging
 from app.common.redis.connection import get_client
+from app.common.sentry import setup_sentry
 from app.importer.download import download_gtfs_zip
 from app.importer.load import load_gtfs_zip
 
@@ -69,6 +70,7 @@ def run_import() -> None:
 
 def main() -> None:
     """Run import every hour in a loop"""
+    setup_sentry("importer")
     setup_logging()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
