@@ -1,0 +1,5 @@
+REDIS_KEY_GTFS_READY: str = "gtfs:ready"
+
+# GTFS readiness
+GTFS_READINESS_TIMEOUT: int = 180
+GTFS_READINESS_POLL_INTERVAL: int = 5

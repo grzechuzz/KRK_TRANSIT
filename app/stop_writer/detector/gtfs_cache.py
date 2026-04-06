@@ -1,11 +1,11 @@
 from cachetools import LRUCache
 from sqlalchemy.orm import Session
 
-from app.common.constants import CACHE_MAX_SEQUENCES, CACHE_MAX_STOP_TIMES, CACHE_MAX_STOPS, CACHE_MAX_TRIPS
-from app.common.db.models import CurrentStop, CurrentStopTime, CurrentTrip
-from app.common.db.repositories.gtfs_meta import GtfsMetaRepository
-from app.common.db.repositories.gtfs_static import GtfsStaticRepository
-from app.common.models.enums import Agency
+from app.shared.db.models import CurrentStop, CurrentStopTime, CurrentTrip
+from app.shared.gtfs.repositories.gtfs_meta import GtfsMetaRepository
+from app.shared.gtfs.repositories.gtfs_static import GtfsStaticRepository
+from app.shared.models.enums import Agency
+from app.stop_writer.constants import CACHE_MAX_SEQUENCES, CACHE_MAX_STOP_TIMES, CACHE_MAX_STOPS, CACHE_MAX_TRIPS
 
 
 class GtfsCache:

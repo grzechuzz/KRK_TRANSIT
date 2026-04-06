@@ -3,15 +3,16 @@ import logging
 import redis
 from cachetools import LRUCache
 
-from app.common.constants import CACHE_MAX_STOP_ID_TO_SEQ, VEHICLE_POSITIONS_CHANNEL
-from app.common.db.connection import get_session
-from app.common.db.repositories.gtfs_static import GtfsStaticRepository
-from app.common.feeds import FeedConfig
-from app.common.gtfs.parser import parse_trip_updates, parse_vehicle_positions
-from app.common.redis import serializer
-from app.common.redis.repositories.live_vehicles import LiveVehiclePositionRepository
-from app.common.redis.repositories.trip_updates import TripUpdatesRepository
-from app.common.redis.schemas import LiveVehiclePosition, VehiclePositionMessage
+from app.platform.db.connection import get_session
+from app.rt_poller.constants import CACHE_MAX_STOP_ID_TO_SEQ
+from app.rt_poller.parser import parse_trip_updates, parse_vehicle_positions
+from app.shared.gtfs.feeds import FeedConfig
+from app.shared.gtfs.repositories.gtfs_static import GtfsStaticRepository
+from app.shared.redis import serializer
+from app.shared.redis.constants import VEHICLE_POSITIONS_CHANNEL
+from app.shared.redis.repositories.live_vehicles import LiveVehiclePositionRepository
+from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
+from app.shared.redis.schemas import LiveVehiclePosition, VehiclePositionMessage
 
 logger = logging.getLogger(__name__)
 

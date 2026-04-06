@@ -1,10 +1,10 @@
-from app.common.models.enums import DetectionMethod
-from app.common.models.events import StopEvent
-from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
-from app.common.redis.repositories.trip_updates import TripUpdatesRepository
+from app.shared.models.enums import DetectionMethod
+from app.shared.models.events import StopEvent
+from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
 from app.stop_writer.detector.event_factory import EventFactory
 from app.stop_writer.detector.gtfs_cache import GtfsCache
 from app.stop_writer.detector.strategies.base import DetectionContext
+from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
 
 
 class SeqJumpStrategy:
@@ -50,7 +50,10 @@ class SeqJumpStrategy:
                 continue
 
             event = self._factory.create(
-                vp=ctx.vp,
+                agency=ctx.vp.agency,
+                trip_id=ctx.vp.trip_id,
+                vehicle_id=ctx.vp.vehicle_id or None,
+                license_plate=ctx.vp.license_plate,
                 stop_sequence=missed_seq,
                 event_time=event_time,
                 service_date=ctx.service_date,

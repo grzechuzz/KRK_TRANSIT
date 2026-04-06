@@ -7,9 +7,9 @@ from sqlalchemy import pool
 from alembic import context
 
 
-from app.common.db.models import Base
-from app.common.db import models  # noqa: F401
-from app.common.config import get_config
+from app.platform.config import get_config
+from app.shared.db import models  # noqa: F401
+from app.shared.db.models import Base
 
 # Fake Redis config for migrations (not used)
 os.environ.setdefault("REDIS_PASSWORD", "fake_for_migrations")

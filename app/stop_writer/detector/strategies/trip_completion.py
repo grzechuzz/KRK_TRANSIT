@@ -1,12 +1,11 @@
-from app.common.gtfs.timeparse import compute_service_date
-from app.common.models.enums import Agency, DetectionMethod
-from app.common.models.events import StopEvent
-from app.common.models.gtfs_realtime import VehiclePosition
-from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
-from app.common.redis.repositories.trip_updates import TripUpdatesRepository
-from app.common.redis.schemas import VehicleState
+from app.shared.gtfs.timeparse import compute_service_date
+from app.shared.models.enums import Agency, DetectionMethod
+from app.shared.models.events import StopEvent
+from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
+from app.shared.redis.schemas import VehicleState
 from app.stop_writer.detector.event_factory import EventFactory
 from app.stop_writer.detector.gtfs_cache import GtfsCache
+from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
 
 
 class TripFinalizer:
@@ -62,22 +61,11 @@ class TripFinalizer:
 
             is_estimated = detection_method in (DetectionMethod.SEQ_JUMP, DetectionMethod.TIMEOUT)
 
-            dummy_vp = VehiclePosition(
+            event = self._factory.create(
                 agency=Agency(agency_str),
                 trip_id=trip_id,
-                vehicle_id="",
+                vehicle_id=None,
                 license_plate=prev_state.license_plate,
-                latitude=None,
-                longitude=None,
-                bearing=None,
-                stop_id=stop_time.stop_id,
-                stop_sequence=seq,
-                status=None,
-                timestamp=event_time,
-            )
-
-            event = self._factory.create(
-                vp=dummy_vp,
                 stop_sequence=seq,
                 event_time=event_time,
                 service_date=service_date,

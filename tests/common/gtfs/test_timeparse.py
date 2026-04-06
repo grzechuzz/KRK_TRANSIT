@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.common.gtfs.timeparse import (
+from app.shared.gtfs.timeparse import (
     compute_delay_seconds,
     compute_planned_time,
     compute_service_date,

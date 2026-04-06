@@ -1,6 +1,6 @@
 import pytest
 
-from app.common.retry import retry_sync
+from app.platform.retry import retry_sync
 
 
 def test_retry_sync_returns_after_retry() -> None:

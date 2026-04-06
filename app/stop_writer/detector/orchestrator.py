@@ -2,13 +2,12 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.common.gtfs.timeparse import compute_service_date
-from app.common.models.events import StopEvent
-from app.common.models.gtfs_realtime import VehiclePosition
-from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
-from app.common.redis.repositories.trip_updates import TripUpdatesRepository
-from app.common.redis.repositories.vehicle_state import VehicleStateRepository
-from app.common.redis.schemas import VehicleState
+from app.shared.gtfs.timeparse import compute_service_date
+from app.shared.models.enums import VehicleStatus
+from app.shared.models.events import StopEvent
+from app.shared.models.gtfs_realtime import VehiclePosition
+from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
+from app.shared.redis.schemas import VehicleState
 from app.stop_writer.detector.event_factory import EventFactory
 from app.stop_writer.detector.gtfs_cache import GtfsCache
 from app.stop_writer.detector.strategies.base import DetectionContext, DetectionStrategy
@@ -16,6 +15,8 @@ from app.stop_writer.detector.strategies.seq_jump import SeqJumpStrategy
 from app.stop_writer.detector.strategies.stopped_at import StoppedAtStrategy
 from app.stop_writer.detector.strategies.trip_completion import TripFinalizer
 from app.stop_writer.detector.validation import EventValidator
+from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
+from app.stop_writer.repositories.vehicle_state import VehicleStateRepository
 
 
 class StopEventDetector:
@@ -86,7 +87,7 @@ class StopEventDetector:
         detection_events = self._persist_events(detected, agency_str, vp.trip_id, service_date)
 
         # In-batch validation when STOPPED_AT + estimated events in same update
-        if vp.status and vp.status.value == 1 and len(detection_events) > 1:
+        if vp.status == VehicleStatus.STOPPED_AT and len(detection_events) > 1:
             detection_events = self._validator.validate_in_batch(detection_events)
 
         # Save vehicle state

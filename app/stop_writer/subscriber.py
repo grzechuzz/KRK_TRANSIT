@@ -3,10 +3,11 @@ from datetime import datetime
 
 import redis
 
-from app.common.constants import SUBSCRIBER_TIMEOUT, VEHICLE_POSITIONS_CHANNEL
-from app.common.models.enums import Agency, VehicleStatus
-from app.common.models.gtfs_realtime import VehiclePosition
-from app.common.redis import serializer
+from app.shared.models.enums import Agency, VehicleStatus
+from app.shared.models.gtfs_realtime import VehiclePosition
+from app.shared.redis import serializer
+from app.shared.redis.constants import VEHICLE_POSITIONS_CHANNEL
+from app.stop_writer.constants import SUBSCRIBER_TIMEOUT
 
 logger = logging.getLogger(__name__)
 

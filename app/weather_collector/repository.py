@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
-from app.common.db.models import WeatherObservation
+from app.shared.db.models import WeatherObservation
 
 
 class WeatherRepository:

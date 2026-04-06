@@ -1,7 +1,7 @@
 import logging
 import time
 
-from app.common.constants import CIRCUIT_BREAKER_COOLDOWN_SECONDS, CIRCUIT_BREAKER_FAILURE_THRESHOLD
+from app.rt_poller.constants import CIRCUIT_BREAKER_COOLDOWN_SECONDS, CIRCUIT_BREAKER_FAILURE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
-from app.common.models.enums import Agency, DetectionMethod
-from app.common.models.events import StopEvent
+from app.shared.models.enums import Agency, DetectionMethod
+from app.shared.models.events import StopEvent
 from app.stop_writer.detector.validation import EventValidator
 
 

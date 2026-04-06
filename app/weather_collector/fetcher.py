@@ -4,15 +4,14 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from app.common.constants import (
-    TIMEZONE,
-    USER_AGENT,
+from app.platform.constants import TIMEZONE, USER_AGENT
+from app.platform.retry import retry_sync
+from app.shared.db.models import WeatherObservation
+from app.weather_collector.constants import (
     WEATHER_FETCH_MAX_RETRIES,
     WEATHER_FETCH_RETRY_BACKOFF_SECONDS,
     WEATHER_FETCH_TIMEOUT_SECONDS,
 )
-from app.common.db.models import WeatherObservation
-from app.common.retry import retry_sync
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,11 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from app.common.constants import TIMEZONE
-from app.common.db.models import CurrentStopTime, CurrentTrip
-from app.common.gtfs.timeparse import compute_delay_seconds, compute_planned_time
-from app.common.models.enums import DetectionMethod
-from app.common.models.events import StopEvent
-from app.common.models.gtfs_realtime import VehiclePosition
+from app.platform.constants import TIMEZONE
+from app.shared.db.models import CurrentStopTime, CurrentTrip
+from app.shared.gtfs.timeparse import compute_delay_seconds, compute_planned_time
+from app.shared.models.enums import Agency, DetectionMethod
+from app.shared.models.events import StopEvent
 from app.stop_writer.detector.gtfs_cache import GtfsCache
 
 TZ = ZoneInfo(TIMEZONE)
@@ -18,7 +17,10 @@ class EventFactory:
 
     def create(
         self,
-        vp: VehiclePosition,
+        agency: Agency,
+        trip_id: str,
+        vehicle_id: str | None,
+        license_plate: str | None,
         stop_sequence: int,
         event_time: datetime,
         service_date: date,
@@ -31,11 +33,11 @@ class EventFactory:
         if not stop:
             return None
 
-        static_hash = self._cache.get_current_hash(vp.agency)
+        static_hash = self._cache.get_current_hash(agency)
         if not static_hash:
             return None
 
-        max_seq = self._cache.get_max_stop_sequence(vp.trip_id)
+        max_seq = self._cache.get_max_stop_sequence(trip_id)
         if not max_seq:
             return None
 
@@ -43,8 +45,8 @@ class EventFactory:
         delay_seconds = compute_delay_seconds(event_time, planned_time)
 
         return StopEvent(
-            agency=vp.agency,
-            trip_id=vp.trip_id,
+            agency=agency,
+            trip_id=trip_id,
             service_date=service_date,
             stop_sequence=stop_sequence,
             stop_id=stop_time.stop_id,
@@ -56,8 +58,8 @@ class EventFactory:
             planned_time=planned_time,
             event_time=event_time,
             delay_seconds=delay_seconds,
-            vehicle_id=vp.vehicle_id or None,
-            license_plate=vp.license_plate,
+            vehicle_id=vehicle_id,
+            license_plate=license_plate,
             detection_method=detection_method,
             is_estimated=is_estimated,
             static_hash=static_hash,
