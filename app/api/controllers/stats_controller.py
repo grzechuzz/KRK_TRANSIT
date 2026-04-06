@@ -56,9 +56,7 @@ def get_max_delay_between_stops(
     (e.g., GPS drift during layovers, driver login delays).
     """
     validate_date_range(start_date, end_date)
-    return MsgspecJSONResponse(
-        service.max_delay_between_stops(line_number, start_date, end_date, include_estimated)
-    )
+    return MsgspecJSONResponse(service.max_delay_between_stops(line_number, start_date, end_date, include_estimated))
 
 
 @router.get(
