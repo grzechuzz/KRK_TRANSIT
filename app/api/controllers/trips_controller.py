@@ -1,12 +1,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response
 
 from app.api.constants import RATE_LIMIT_DEFAULT
 from app.api.db import DbSession
 from app.api.middleware import limiter
 from app.api.openapi import DOC_TRIP_STOPS
-from app.api.schemas import TripIdPath, TripStopsResponse
+from app.api.response import MsgspecJSONResponse
+from app.api.schemas import TripIdPath
 from app.api.services.trips_service import TripsService
 from app.shared.gtfs.repositories.gtfs_static import GtfsStaticRepository
 
@@ -20,12 +22,17 @@ def _get_service(db: DbSession) -> TripsService:
 Trips = Annotated[TripsService, Depends(_get_service)]
 
 
-@router.get("/{trip_id}/stops", openapi_extra=DOC_TRIP_STOPS, summary="Get trip stops")
+@router.get(
+    "/{trip_id}/stops",
+    openapi_extra=DOC_TRIP_STOPS,
+    summary="Get trip stops",
+    response_model=None,
+)
 @limiter.limit(RATE_LIMIT_DEFAULT)
-def get_trip_stops(request: Request, trip_id: TripIdPath, service: Trips) -> TripStopsResponse:
+def get_trip_stops(request: Request, trip_id: TripIdPath, service: Trips) -> Response:
     """
     Returns the ordered list of stops for a specific trip.
 
     Use `trip_id` from the `/vehicles/positions` endpoint to fetch stops for a vehicle's current trip.
     """
-    return service.get_trip_stops(trip_id)
+    return MsgspecJSONResponse(service.get_trip_stops(trip_id))
