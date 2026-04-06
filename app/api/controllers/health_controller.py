@@ -4,7 +4,7 @@ from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 
 from app.api.db import DbSession
-from app.common.redis.connection import get_client
+from app.platform.redis.connection import get_client
 
 router = APIRouter(tags=["health"])
 

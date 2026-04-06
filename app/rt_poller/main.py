@@ -3,15 +3,15 @@ import signal
 from threading import Event
 from typing import Any
 
-from app.common.constants import POLL_INTERVAL_SECONDS
-from app.common.feeds import FeedConfig, get_all_feed_configs
-from app.common.gtfs.readiness import wait_for_gtfs_ready
-from app.common.logging import setup_logging
-from app.common.redis.connection import get_client
-from app.common.sentry import capture_exception, setup_sentry
+from app.platform.logging import setup_logging
+from app.platform.redis.connection import get_client
+from app.platform.sentry import capture_exception, setup_sentry
 from app.rt_poller.circuit_breaker import CircuitBreaker
+from app.rt_poller.constants import POLL_INTERVAL_SECONDS
 from app.rt_poller.fetcher import fetch_trip_updates, fetch_vehicle_positions
 from app.rt_poller.publisher import Publisher
+from app.shared.gtfs.feeds import FeedConfig, get_all_feed_configs
+from app.shared.gtfs.readiness import wait_for_gtfs_ready
 
 logger = logging.getLogger(__name__)
 

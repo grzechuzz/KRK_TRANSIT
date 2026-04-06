@@ -10,8 +10,8 @@ from typing import Any
 from psycopg import sql
 from sqlalchemy.orm import Session
 
-from app.common.feeds import FeedConfig
-from app.common.gtfs.timeparse import parse_gtfs_time_to_seconds
+from app.shared.gtfs.feeds import FeedConfig
+from app.shared.gtfs.timeparse import parse_gtfs_time_to_seconds
 
 logger = logging.getLogger(__name__)
 

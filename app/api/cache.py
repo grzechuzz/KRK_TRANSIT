@@ -4,14 +4,14 @@ from datetime import date
 import msgspec
 import redis
 
-from app.common.constants import (
+from app.api.constants import (
     DEFAULT_TTL,
     LONG_TTL,
     LONG_TTL_THRESHOLD_DAYS,
     REDIS_KEY_VEHICLES_CACHE,
     VEHICLES_CACHE_TTL,
 )
-from app.common.redis.connection import get_client
+from app.platform.redis.connection import get_client
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def set_cached(
     end_date: date,
     data: msgspec.Struct,
     include_estimated: bool = False,
-) -> bytes:
+) -> None:
     raw = msgspec.json.encode(data)
     try:
         client = get_client()
@@ -53,7 +53,6 @@ def set_cached(
         )
     except redis.RedisError:
         logger.warning("Redis write failed for stats cache", exc_info=True)
-    return raw
 
 
 def get_vehicles_cache() -> bytes | None:

@@ -4,10 +4,11 @@ from threading import Event
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from app.common.constants import TIMEZONE, WEATHER_BACKFILL_DAYS, WEATHER_COLLECT_INTERVAL
-from app.common.db.connection import get_session
-from app.common.logging import setup_logging
-from app.common.sentry import capture_exception, setup_sentry
+from app.platform.constants import TIMEZONE
+from app.platform.db.connection import get_session
+from app.platform.logging import setup_logging
+from app.platform.sentry import capture_exception, setup_sentry
+from app.weather_collector.constants import WEATHER_BACKFILL_DAYS, WEATHER_COLLECT_INTERVAL
 from app.weather_collector.fetcher import fetch_weather
 from app.weather_collector.repository import WeatherRepository
 

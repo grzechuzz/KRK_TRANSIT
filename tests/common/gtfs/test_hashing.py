@@ -1,6 +1,6 @@
 import pytest
 
-from app.common.gtfs.hashing import sha256_file
+from app.importer.hashing import sha256_file
 
 
 class TestSha256File:

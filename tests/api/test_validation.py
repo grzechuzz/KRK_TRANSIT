@@ -4,8 +4,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.api.validation import validate_date_range
-from app.common.constants import TIMEZONE
-from app.common.exceptions import ValidationError
+from app.platform.constants import TIMEZONE
+from app.shared.exceptions import ValidationError
 
 _WARSAW = ZoneInfo(TIMEZONE)
 

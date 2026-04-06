@@ -3,14 +3,14 @@ from pathlib import Path
 
 import requests
 
-from app.common.constants import (
+from app.importer.constants import (
     IMPORT_FETCH_RETRY_ATTEMPTS,
     IMPORT_FETCH_RETRY_BACKOFF_SECONDS,
     IMPORT_FETCH_TIMEOUT_SECONDS,
-    USER_AGENT,
 )
-from app.common.feeds import FeedConfig
-from app.common.retry import retry_sync
+from app.platform.constants import USER_AGENT
+from app.platform.retry import retry_sync
+from app.shared.gtfs.feeds import FeedConfig
 
 _HEADERS = {"User-Agent": USER_AGENT}
 

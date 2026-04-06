@@ -1,8 +1,9 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from app.common.constants import MAX_DATE_RANGE_DAYS, TIMEZONE
-from app.common.exceptions import ValidationError
+from app.api.constants import MAX_DATE_RANGE_DAYS
+from app.platform.constants import TIMEZONE
+from app.shared.exceptions import ValidationError
 
 _WARSAW = ZoneInfo(TIMEZONE)
 

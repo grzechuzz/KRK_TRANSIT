@@ -1,8 +1,8 @@
-from app.common.models.enums import DetectionMethod
-from app.common.models.events import StopEvent
-from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
+from app.shared.models.enums import DetectionMethod, VehicleStatus
+from app.shared.models.events import StopEvent
 from app.stop_writer.detector.event_factory import EventFactory
 from app.stop_writer.detector.strategies.base import DetectionContext
+from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
 
 
 class StoppedAtStrategy:
@@ -11,14 +11,17 @@ class StoppedAtStrategy:
         self._saved_seqs = saved_seqs
 
     def detect(self, ctx: DetectionContext) -> list[StopEvent]:
-        if not (ctx.vp.status and ctx.vp.status.value == 1):
+        if ctx.vp.status != VehicleStatus.STOPPED_AT:
             return []
 
         if self._saved_seqs.is_saved(ctx.agency_str, ctx.vp.trip_id, ctx.service_date, ctx.stop_sequence):
             return []
 
         event = self._factory.create(
-            vp=ctx.vp,
+            agency=ctx.vp.agency,
+            trip_id=ctx.vp.trip_id,
+            vehicle_id=ctx.vp.vehicle_id or None,
+            license_plate=ctx.vp.license_plate,
             stop_sequence=ctx.stop_sequence,
             event_time=ctx.vp.timestamp,
             service_date=ctx.service_date,

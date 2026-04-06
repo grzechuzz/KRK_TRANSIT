@@ -1,6 +1,8 @@
 from datetime import date
 from typing import Any
 
+import msgspec
+
 from app.api import cache
 from app.api.repositories.stats_repository import StatsRepository
 from app.api.schemas import (
@@ -12,7 +14,7 @@ from app.api.schemas import (
     TrendDay,
     TrendResponse,
 )
-from app.common.exceptions import ResourceNotFoundError
+from app.shared.exceptions import ResourceNotFoundError
 
 
 def _to_str(row: dict[str, Any]) -> dict[str, Any]:
@@ -30,10 +32,10 @@ class StatsService:
 
     def max_delay_between_stops(
         self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
-    ) -> bytes:
+    ) -> MaxDelayBetweenStopsResponse:
         cached = cache.get_cached("max-delay", line_number, start_date, end_date, include_estimated)
         if cached is not None:
-            return cached
+            return msgspec.json.decode(cached, type=MaxDelayBetweenStopsResponse)
 
         trips = self._repo.trips_count(line_number, start_date, end_date)
         _check_line_exists(trips, line_number, start_date, end_date)
@@ -47,12 +49,15 @@ class StatsService:
             max_delay=[MaxDelayBetweenStops(**_to_str(row)) for row in rows],
             trips_analyzed=trips,
         )
-        return cache.set_cached("max-delay", line_number, start_date, end_date, result, include_estimated)
+        cache.set_cached("max-delay", line_number, start_date, end_date, result, include_estimated)
+        return result
 
-    def route_delay(self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False) -> bytes:
+    def route_delay(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> RouteDelayResponse:
         cached = cache.get_cached("route-delay", line_number, start_date, end_date, include_estimated)
         if cached is not None:
-            return cached
+            return msgspec.json.decode(cached, type=RouteDelayResponse)
 
         trips = self._repo.trips_count(line_number, start_date, end_date)
         _check_line_exists(trips, line_number, start_date, end_date)
@@ -66,12 +71,15 @@ class StatsService:
             max_route_delay=[RouteDelay(**_to_str(row)) for row in rows],
             trips_analyzed=trips,
         )
-        return cache.set_cached("route-delay", line_number, start_date, end_date, result, include_estimated)
+        cache.set_cached("route-delay", line_number, start_date, end_date, result, include_estimated)
+        return result
 
-    def punctuality(self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False) -> bytes:
+    def punctuality(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> PunctualityResponse:
         cached = cache.get_cached("punctuality", line_number, start_date, end_date, include_estimated)
         if cached is not None:
-            return cached
+            return msgspec.json.decode(cached, type=PunctualityResponse)
 
         trips = self._repo.trips_count(line_number, start_date, end_date)
         _check_line_exists(trips, line_number, start_date, end_date)
@@ -91,12 +99,15 @@ class StatsService:
             delayed_count=row["delayed"],
             delayed_percent=round(row["delayed"] / total * 100, 1) if total else 0.0,
         )
-        return cache.set_cached("punctuality", line_number, start_date, end_date, result, include_estimated)
+        cache.set_cached("punctuality", line_number, start_date, end_date, result, include_estimated)
+        return result
 
-    def trend(self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False) -> bytes:
+    def trend(
+        self, line_number: str, start_date: date, end_date: date, include_estimated: bool = False
+    ) -> TrendResponse:
         cached = cache.get_cached("trend", line_number, start_date, end_date, include_estimated)
         if cached is not None:
-            return cached
+            return msgspec.json.decode(cached, type=TrendResponse)
 
         trips = self._repo.trips_count(line_number, start_date, end_date)
         _check_line_exists(trips, line_number, start_date, end_date)
@@ -109,4 +120,5 @@ class StatsService:
             end_date=str(end_date),
             days=[TrendDay(**_to_str(r)) for r in rows],
         )
-        return cache.set_cached("trend", line_number, start_date, end_date, result, include_estimated)
+        cache.set_cached("trend", line_number, start_date, end_date, result, include_estimated)
+        return result

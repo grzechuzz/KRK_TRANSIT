@@ -5,7 +5,8 @@ import sqlalchemy as sa
 from sqlalchemy import and_, distinct, func, or_
 from sqlalchemy.orm import Session
 
-from app.common.constants import ESTIMATED_VALID_FROM, MIN_DELAY_SECONDS, TIMEZONE
+from app.api.constants import ESTIMATED_VALID_FROM, MIN_DELAY_SECONDS
+from app.platform.constants import TIMEZONE
 
 _TZ = TIMEZONE
 

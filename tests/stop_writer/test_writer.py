@@ -3,8 +3,8 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from pytest_mock import MockerFixture
 
-from app.common.models.enums import Agency, DetectionMethod
-from app.common.models.events import StopEvent
+from app.shared.models.enums import Agency, DetectionMethod
+from app.shared.models.events import StopEvent
 from app.stop_writer.writer import BatchWriteError, BatchWriter
 
 

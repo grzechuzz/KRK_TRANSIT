@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from app.common.db.models import CurrentStopTime, CurrentTrip
-from app.common.models.events import StopEvent
-from app.common.models.gtfs_realtime import VehiclePosition
-from app.common.redis.schemas import VehicleState
+from app.shared.db.models import CurrentStopTime, CurrentTrip
+from app.shared.models.events import StopEvent
+from app.shared.models.gtfs_realtime import VehiclePosition
+from app.shared.redis.schemas import VehicleState
 
 
 @dataclass(frozen=True)

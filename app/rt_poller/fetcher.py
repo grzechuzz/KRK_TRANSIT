@@ -1,13 +1,13 @@
 import requests
 
-from app.common.constants import (
+from app.platform.constants import USER_AGENT
+from app.platform.retry import retry_sync
+from app.rt_poller.constants import (
     RT_FETCH_RETRY_ATTEMPTS,
     RT_FETCH_RETRY_BACKOFF_SECONDS,
     RT_FETCH_TIMEOUT_SECONDS,
-    USER_AGENT,
 )
-from app.common.feeds import FeedConfig
-from app.common.retry import retry_sync
+from app.shared.gtfs.feeds import FeedConfig
 
 _HEADERS = {"User-Agent": USER_AGENT}
 

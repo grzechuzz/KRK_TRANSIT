@@ -3,10 +3,10 @@ from datetime import UTC, datetime
 import pytest
 from pytest_mock import MockerFixture
 
-from app.common.db.models import CurrentRoute, CurrentStop, CurrentStopTime, CurrentTrip
-from app.common.models.enums import Agency, VehicleStatus
-from app.common.models.gtfs_realtime import VehiclePosition
-from app.common.redis.schemas import CachedStopTime, TripUpdateCache, VehicleState
+from app.shared.db.models import CurrentRoute, CurrentStop, CurrentStopTime, CurrentTrip
+from app.shared.models.enums import Agency, VehicleStatus
+from app.shared.models.gtfs_realtime import VehiclePosition
+from app.shared.redis.schemas import CachedStopTime, TripUpdateCache, VehicleState
 from app.stop_writer.detector import StopEventDetector
 from app.stop_writer.detector.gtfs_cache import GtfsCache
 

@@ -5,7 +5,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.response import MsgspecJSONResponse
 from app.api.schemas import ErrorResponse
-from app.common.exceptions import (
+from app.shared.exceptions import (
     AppError,
     ExternalServiceError,
     ResourceNotFoundError,

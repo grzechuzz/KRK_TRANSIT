@@ -1,15 +1,13 @@
-import msgspec
-
 from app.api.schemas import ShapePoint, ShapeResponse
-from app.common.db.repositories.gtfs_static import GtfsStaticRepository
-from app.common.exceptions import ResourceNotFoundError
+from app.shared.exceptions import ResourceNotFoundError
+from app.shared.gtfs.repositories.gtfs_static import GtfsStaticRepository
 
 
 class ShapesService:
     def __init__(self, static_repo: GtfsStaticRepository):
         self._static_repo = static_repo
 
-    def get_shape(self, shape_id: str) -> bytes:
+    def get_shape(self, shape_id: str) -> ShapeResponse:
         points = self._static_repo.get_shape_points(shape_id)
         if not points:
             raise ResourceNotFoundError("Shape", shape_id)
@@ -25,4 +23,4 @@ class ShapesService:
                 for p in points
             ],
         )
-        return msgspec.json.encode(response)
+        return response

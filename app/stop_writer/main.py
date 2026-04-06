@@ -5,16 +5,16 @@ from itertools import chain, repeat
 from threading import Event
 from typing import Any
 
-from app.common.constants import STOP_WRITER_FLUSH_RETRY_BACKOFF_SECONDS
-from app.common.db.connection import get_session
-from app.common.gtfs.readiness import wait_for_gtfs_ready
-from app.common.logging import setup_logging
-from app.common.redis.connection import get_client
-from app.common.redis.repositories.saved_sequences import SavedSequencesRepository
-from app.common.redis.repositories.trip_updates import TripUpdatesRepository
-from app.common.redis.repositories.vehicle_state import VehicleStateRepository
-from app.common.sentry import capture_exception, setup_sentry
+from app.platform.db.connection import get_session
+from app.platform.logging import setup_logging
+from app.platform.redis.connection import get_client
+from app.platform.sentry import capture_exception, setup_sentry
+from app.shared.gtfs.readiness import wait_for_gtfs_ready
+from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
+from app.stop_writer.constants import STOP_WRITER_FLUSH_RETRY_BACKOFF_SECONDS
 from app.stop_writer.detector import StopEventDetector
+from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
+from app.stop_writer.repositories.vehicle_state import VehicleStateRepository
 from app.stop_writer.subscriber import Subscriber
 from app.stop_writer.writer import BatchWriteError, BatchWriter
 

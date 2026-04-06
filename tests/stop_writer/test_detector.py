@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.common.models.enums import Agency, DetectionMethod, VehicleStatus
+from app.shared.models.enums import Agency, DetectionMethod, VehicleStatus
 
 from conftest import make_trip_update_cache, make_vehicle_position, make_vehicle_state
 

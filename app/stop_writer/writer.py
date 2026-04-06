@@ -3,9 +3,9 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.common.constants import WRITER_BATCH_SIZE, WRITER_FLUSH_INTERVAL
-from app.common.db.repositories.stop_event import StopEventRepository
-from app.common.models.events import StopEvent
+from app.shared.models.events import StopEvent
+from app.stop_writer.constants import WRITER_BATCH_SIZE, WRITER_FLUSH_INTERVAL
+from app.stop_writer.repositories.stop_event import StopEventRepository
 
 logger = logging.getLogger(__name__)
 

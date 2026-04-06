@@ -1,15 +1,13 @@
-import msgspec
-
 from app.api.schemas import TripStop, TripStopsResponse
-from app.common.db.repositories.gtfs_static import GtfsStaticRepository
-from app.common.exceptions import ResourceNotFoundError
+from app.shared.exceptions import ResourceNotFoundError
+from app.shared.gtfs.repositories.gtfs_static import GtfsStaticRepository
 
 
 class TripsService:
     def __init__(self, static_repo: GtfsStaticRepository):
         self._static_repo = static_repo
 
-    def get_trip_stops(self, trip_id: str) -> bytes:
+    def get_trip_stops(self, trip_id: str) -> TripStopsResponse:
         rows = self._static_repo.get_stops_for_trip(trip_id)
         if not rows:
             raise ResourceNotFoundError("Trip", trip_id)
@@ -28,4 +26,4 @@ class TripsService:
                 for stop_time, stop in rows
             ],
         )
-        return msgspec.json.encode(response)
+        return response
