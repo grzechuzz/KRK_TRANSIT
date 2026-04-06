@@ -43,7 +43,16 @@ Dokumentacja: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
 
 ## Architektura
 
-System składa się z pięciu serwisów.
+System składa się z pięciu serwisów, z których każdy realizuje konkretny etap przepływu danych. Moduły serwisów nie
+importują się bezpośrednio nawzajem i są rozdzielone względem odpowiedzialności. Backend, a dokładniej główną ścieżkę
+pobierania, przetwarzania i zapisu danych określiłbym jako `event-driven data pipeline`.
+
+Projekt celowo opiera się na współdzielonej bazie danych, bo uważam, że przy tej skali mikroserwisy raczej tylko
+utrudniłyby życie. Baza danych podzielona jest na trzy osobne schematy: `gtfs_static`, `events` oraz `weather`.
+
+<p align="center">
+<img width="569" height="927" alt="image" src="https://github.com/user-attachments/assets/bbd842d9-e373-4322-8252-03a249e0a245" />
+</p>
 
 | Serwis | Rola |
 |---|---|
@@ -77,48 +86,26 @@ Zdarzenia estymowane (`SEQ_JUMP`, `TIMEOUT`) są dostępne opcjonalnie przez par
 ## Uruchomienie lokalne
 
 1. Sklonuj repozytorium:
-```bash
-git clone https://github.com/grzechuzz/KRK_TRANSIT.git
-```
+   ```bash
+   git clone https://github.com/grzechuzz/KRK_TRANSIT.git
+   cd KRK_TRANSIT
+   ```
 
 2. Stwórz potrzebne pliki:
    
-   - `secrets/db_password` (admin bazy)
-   - `secrets/db_password_api` (tylko odczyt dla API)
-   - `secrets/db_password_writer` (zapis danych RT)
-   - `secrets/db_password_importer` (zapis danych GTFS)
-   - `secrets/db_password_weather_collector` (zapis danych pogodowych)
-   - `secrets/redis_password`
-   - `redis/users.acl`
-   
-  Przykładowy `redis/users.acl`
-  
-   ```
-   user mpk_redis on >CHANGE_THAT_PASSWORD ~* &* +@read +@write +@string +@hash +@set +@list +@pubsub +@keyspace +@connection -@dangerous
-   user default off
-   ```
-
-   Utwórz plik `docker/.env` i uzupełnij zmienne:
-   ```env
-   POSTGRES_DB=
-   POSTGRES_USER=
-   IMPORTER_USER=
-   WRITER_USER=
-   API_READER_USER=
-   WEATHER_COLLECTOR_USER=
-   REDIS_USER=
+   ```bash
+   ./scripts/local.sh bootstrap
    ```
    
 3. Uruchom kontenery:
-```bash
-cd docker
-docker compose up -d --build
-```
+   ```bash
+   ./scripts/local.sh up
+   ```
 
 4. Otwórz dokumentację API:
-```
-http://localhost:8000/docs
-```
+   ```bash
+   http://localhost:8000/docs
+   ```
 
 ## Testy i linter
 
