@@ -10,6 +10,7 @@ from app.platform.logging import setup_logging
 from app.platform.redis.connection import get_client
 from app.platform.sentry import capture_exception, setup_sentry
 from app.shared.gtfs.readiness import wait_for_gtfs_ready
+from app.shared.gtfs.reload_marker import ReloadRequiredError, ReloadWatcher
 from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
 from app.stop_writer.constants import STOP_WRITER_FLUSH_RETRY_BACKOFF_SECONDS
 from app.stop_writer.detector import StopEventDetector
@@ -73,6 +74,7 @@ def run_writer() -> None:
     saved_seqs_repo = SavedSequencesRepository(redis_client)
 
     subscriber = Subscriber(redis_client)
+    reload_watcher = ReloadWatcher(redis_client)
 
     logger.info("Starting stop writer")
 
@@ -87,6 +89,7 @@ def run_writer() -> None:
 
         try:
             while not shutdown_event.is_set():
+                reload_watcher.raise_if_changed()
                 try:
                     update = subscriber.get_next()
                     if update:
@@ -124,7 +127,10 @@ def main() -> None:
     logger.info("Stop Writer starting, waiting for GTFS data...")
     wait_for_gtfs_ready()
     logger.info("GTFS ready, starting writer")
-    run_writer()
+    try:
+        run_writer()
+    except ReloadRequiredError:
+        logger.info("GTFS reload marker changed, exiting for container restart")
     logger.info("Stop writer shutdown complete")
 
 

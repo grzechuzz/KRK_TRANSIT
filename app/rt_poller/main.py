@@ -12,6 +12,7 @@ from app.rt_poller.fetcher import fetch_trip_updates, fetch_vehicle_positions
 from app.rt_poller.publisher import Publisher
 from app.shared.gtfs.feeds import FeedConfig, get_all_feed_configs
 from app.shared.gtfs.readiness import wait_for_gtfs_ready
+from app.shared.gtfs.reload_marker import ReloadRequiredError, ReloadWatcher
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +56,14 @@ def run_poller() -> None:
     """Run the GTFS Realtime poller loop"""
     redis = get_client()
     publisher = Publisher(redis)
+    reload_watcher = ReloadWatcher(redis)
     feeds = get_all_feed_configs()
     breakers = {feed.agency: CircuitBreaker() for feed in feeds}
 
     logger.info("Starting poller for %d feeds", len(feeds))
 
     while not shutdown_event.is_set():
+        reload_watcher.raise_if_changed()
         for feed in feeds:
             if shutdown_event.is_set():
                 break
@@ -78,7 +81,10 @@ def main() -> None:
     logger.info("GTFS Realtime poller starting, waiting for GTFS Static data...")
     wait_for_gtfs_ready()
     logger.info("Starting poller")
-    run_poller()
+    try:
+        run_poller()
+    except ReloadRequiredError:
+        logger.info("GTFS reload marker changed, exiting for container restart")
     logger.info("Poller shutdown complete")
 
 

@@ -1,6 +1,7 @@
 import logging
 import shutil
 import signal
+from dataclasses import dataclass
 from pathlib import Path
 from threading import Event
 from typing import Any
@@ -16,6 +17,7 @@ from app.platform.redis.connection import get_client
 from app.platform.sentry import capture_exception, setup_sentry
 from app.shared.constants import REDIS_KEY_GTFS_READY
 from app.shared.gtfs.feeds import get_all_feed_configs
+from app.shared.gtfs.reload_marker import bump_reload_marker
 from app.shared.gtfs.repositories.gtfs_meta import GtfsMetaRepository
 
 logger = logging.getLogger(__name__)
@@ -23,15 +25,22 @@ logger = logging.getLogger(__name__)
 shutdown_event = Event()
 
 
+@dataclass(slots=True)
+class ImportCycleResult:
+    all_ok: bool = True
+    any_changed: bool = False
+
+
 def signal_handler(*args: Any) -> None:
     logger.info("Shutdown signal received")
     shutdown_event.set()
 
 
-def run_import() -> None:
+def run_import() -> ImportCycleResult:
     """Run GTFS static import for all configured feeds."""
     feed_configs = get_all_feed_configs()
     logger.info("Starting import for %d feeds", len(feed_configs))
+    result = ImportCycleResult()
 
     for feed_config in feed_configs:
         agency_name = feed_config.agency.value
@@ -61,11 +70,13 @@ def run_import() -> None:
                 logger.info("Loading %s into database...", agency_name)
                 load_gtfs_zip(session, zip_path, feed_config)
                 meta_repo.set_current_hash(feed_config.agency, new_hash)
+                result.any_changed = True
                 logger.info("Successfully imported %s", agency_name)
 
             Path(zip_path).unlink()
 
         except Exception as e:
+            result.all_ok = False
             logger.exception("Failed to import %s: %s", agency_name, e)
             capture_exception(
                 e,
@@ -75,6 +86,8 @@ def run_import() -> None:
                     "failure_scope": "feed",
                 },
             )
+
+    return result
 
 
 def main() -> None:
@@ -87,10 +100,17 @@ def main() -> None:
 
     while not shutdown_event.is_set():
         try:
-            run_import()
-            get_client().set(REDIS_KEY_GTFS_READY, "1")
-            logger.info("GTFS ready signal set")
-            logger.info("Import cycle completed, sleeping for 1 hour")
+            result = run_import()
+            if result.all_ok:
+                redis = get_client()
+                redis.set(REDIS_KEY_GTFS_READY, "1")
+                logger.info("GTFS ready signal set")
+                if result.any_changed:
+                    marker = bump_reload_marker(redis)
+                    logger.info("GTFS reload marker updated to %s", marker.decode())
+                logger.info("Import cycle completed, sleeping for 1 hour")
+            else:
+                logger.warning("Import cycle completed with feed failures, skipping GTFS reload marker update")
         except Exception as e:
             logger.exception("Import cycle failed: %s", e)
             capture_exception(
