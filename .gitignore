@@ -212,3 +212,5 @@ __marimo__/
 *.part
 data/
 redis/users.acl
+.CLAUDE
+.codex
