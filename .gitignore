@@ -214,3 +214,4 @@ data/
 redis/users.acl
 .CLAUDE
 .codex
+docs/
