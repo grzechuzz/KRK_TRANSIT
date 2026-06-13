@@ -6,11 +6,9 @@ Platforma dostarczająca statystyki opóźnień pojazdów komunikacji miejskiej 
 
 Umożliwia m.in. identyfikację odcinków na których powstają największe opóźnienia, monitorowanie długofalowych trendów opóźnień dla każdej linii oraz śledzenie pojazdów na żywo.  
 
-Kod można uruchomić lokalnie, co pozwala na samodzielne archiwizowanie danych o zrealizowanych kursach i budowanie własnej, historycznej bazy opóźnień.
+Aby uniknąć fałszowania wyników przez nierealistyczne opóźnienia, statystyki nie uwzględniają pierwszego i ostatniego przystanku kursu. 
 
 **Strona:** https://krktransit.pl/
-
-**API:** https://api.krktransit.pl/docs
 
 **GTFS**: https://gtfs.org/documentation/overview/
 
@@ -22,32 +20,12 @@ Kod można uruchomić lokalnie, co pozwala na samodzielne archiwizowanie danych 
 
 <img width="1912" height="733" alt="image" src="https://github.com/user-attachments/assets/b422d0ba-30c9-4ed1-9ae9-a8e6d5e20e5e" />
 
-
-
-## Endpointy API
-
-Aby uniknąć fałszowania wyników przez nierealistyczne opóźnienia, statystyki nie uwzględniają pierwszego i ostatniego przystanku kursu.
-
-| Endpoint | Opis |
-|---|---|
-| `GET /v1/lines/{line}/stats/max-delay` | Top 10 przyrostów opóźnień między kolejnymi przystankami |
-| `GET /v1/lines/{line}/stats/route-delay` | Top 10 opóźnień wygenerowanych na całej trasie |
-| `GET /v1/lines/{line}/stats/punctuality` | Statystyki punktualności według progów opóźnień |
-| `GET /v1/lines/{line}/stats/trend` | Dzienny trend średniego opóźnienia |
-| `GET /v1/vehicles/positions` | Pozycje GPS wszystkich aktywnych pojazdów na żywo |
-| `GET /v1/shapes/{shape_id}` | Geometria trasy (uporządkowane punkty GPS) |
-| `GET /v1/trips/{trip_id}/stops` | Przystanki na danej trasie |
-| `GET /health` | Health check |
-
-Dokumentacja: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
-
 ## Architektura
 
 System składa się z pięciu serwisów, z których każdy realizuje konkretny etap przepływu danych. Moduły serwisów nie
-importują się bezpośrednio nawzajem i są rozdzielone względem odpowiedzialności. Backend, a dokładniej główną ścieżkę
-pobierania, przetwarzania i zapisu danych określiłbym jako `event-driven data pipeline`.
+importują się bezpośrednio nawzajem i są rozdzielone względem odpowiedzialności. Backend, a dokładniej główna ścieżka pobierania, przetwarzania i zapisu danych ma charakter `event-driven data pipeline`.
 
-Projekt celowo opiera się na współdzielonej bazie danych, bo uważam, że przy tej skali mikroserwisy raczej tylko
+Projekt celowo opiera się na współdzielonej bazie danych, bo przy tej skali mikroserwisy raczej tylko
 utrudniłyby życie. Baza danych podzielona jest na trzy osobne schematy: `gtfs_static`, `events` oraz `weather`.
 
 <p align="center">
@@ -70,52 +48,14 @@ utrudniłyby życie. Baza danych podzielona jest na trzy osobne schematy: `gtfs_
 | `SEQ_JUMP` | Skok w sekwencji przystanków (pominięte przystanki) | Cache predykcji z TripUpdates |
 | `TIMEOUT` | Pojazd rozpoczął nowy kurs (zamykanie poprzedniego) | Cache predykcji z TripUpdates dla poprzedniego kursu |
 
-Zdarzenia estymowane (`SEQ_JUMP`, `TIMEOUT`) są dostępne opcjonalnie przez parametr `?include_estimated=true`. Domyślnie API zwraca wyłącznie zdarzenia wykryte poprzez `STOPPED_AT`.
-
 ## Użyte technologie
 - Python 3.13
 - FastAPI + Uvicorn
 - PostgreSQL 17 (główna baza danych)
-- Redis 7 (cache)
+- Redis 7 (cache + Pub/Sub)
 - msgspec (serializacja), protobuf + gtfs-realtime-bindings (parsowanie GTFS)
 - SQLAlchemy 2.0 
 - Alembic
 - GitHub Actions (CI)
 - Docker
 
-## Uruchomienie lokalne
-
-1. Sklonuj repozytorium:
-   ```bash
-   git clone https://github.com/grzechuzz/KRK_TRANSIT.git
-   cd KRK_TRANSIT
-   ```
-
-2. Stwórz potrzebne pliki:
-   
-   ```bash
-   ./scripts/local.sh bootstrap
-   ```
-   
-3. Uruchom kontenery:
-   ```bash
-   ./scripts/local.sh up
-   ```
-
-4. Otwórz dokumentację API:
-   ```bash
-   http://localhost:8000/docs
-   ```
-
-## Testy i linter
-
-```bash
-pip install -e ".[dev,all]"
-
-pytest                  # testy jednostkowe
-ruff check .            # linting
-ruff format --check .   # formatowanie
-mypy .                  # sprawdzanie typów
-```
-
-CI uruchamia wszystko przy każdym pushu do maina.

@@ -4,11 +4,9 @@ Platform providing real-time public transport delay statistics (MPK, Mobilis) in
 
 Enables identification of route segments generating the highest delays, monitoring of long-term delay trends for each line and live vehicle tracking.
 
-The code can be run locally, allowing you to independently build your own historical database of delays.
+To avoid skewing results with unrealistic delays, statistics exclude the first and last stop of each trip.
 
 **Website:** https://krktransit.pl/
-
-**API:** https://api.krktransit.pl/docs
 
 **GTFS**: https://gtfs.org/documentation/overview/
 
@@ -20,28 +18,11 @@ The code can be run locally, allowing you to independently build your own histor
 
 <img width="1912" height="733" alt="image" src="https://github.com/user-attachments/assets/b422d0ba-30c9-4ed1-9ae9-a8e6d5e20e5e" />
 
-## API Endpoints
-
-To avoid skewing results with unrealistic delays, statistics exclude the first and last stop of each trip.
-
-| Endpoint | Description |
-|---|---|
-| `GET /v1/lines/{line}/stats/max-delay` | Top 10 delay increments between consecutive stops |
-| `GET /v1/lines/{line}/stats/route-delay` | Top 10 delays generated across the entire route |
-| `GET /v1/lines/{line}/stats/punctuality` | Punctuality statistics by delay thresholds |
-| `GET /v1/lines/{line}/stats/trend` | Daily average delay trend |
-| `GET /v1/vehicles/positions` | Live GPS positions of all active vehicles |
-| `GET /v1/shapes/{shape_id}` | Route geometry (ordered GPS points) |
-| `GET /v1/trips/{trip_id}/stops` | Stops on a given trip |
-| `GET /health` | Health check |
-
-Documentation: [api.krktransit.pl/docs](https://api.krktransit.pl/docs)
-
 ## Architecture
 
-The system consists of five services, each handling a specific stage of the data flow. The services are decoupled, they don't import each other directly and maintain a strict separation of concerns. I would describe the backend, specifically the main flow of fetching, processing and storing data, as an `event-driven data pipeline`.
+The system consists of five services, each handling a specific stage of the data flow. The services are decoupled, they don't import each other directly and maintain a strict separation of concerns. The main flow of fetching, processing and storing data has the shape of an `event-driven data pipeline`.
 
-The project deliberately relies on a shared database architecture, as I believe a full microservices approach would only introduce unnecessary overhead at this scale. To keep things organized, the database is divided into three separate schemas: `gtfs_static`, `events` and `weather`.
+The project deliberately relies on a shared database architecture, as a full microservices approach would introduce unnecessary overhead at this scale. To keep things organized, the database is divided into three separate schemas: `gtfs_static`, `events` and `weather`.
 
 <p align="center">
 <img width="569" height="927" alt="image" src="https://github.com/user-attachments/assets/bbd842d9-e373-4322-8252-03a249e0a245" />
@@ -63,51 +44,13 @@ The project deliberately relies on a shared database architecture, as I believe 
 | `SEQ_JUMP` | Stop sequence jump (skipped stops) | TripUpdates prediction cache |
 | `TIMEOUT` | Vehicle started a new trip (completing the previous one) | TripUpdates prediction cache for the previous trip |
 
-Estimated events (`SEQ_JUMP`, `TIMEOUT`) are available optionally via the `?include_estimated=true` parameter. By default, the API returns only events detected via `STOPPED_AT`.
-
 ## Tech Stack
 - Python 3.13
 - FastAPI + Uvicorn
 - PostgreSQL 17 (primary database)
-- Redis 7 (cache)
+- Redis 7 (cache + Pub/Sub)
 - msgspec (serialization), protobuf + gtfs-realtime-bindings (GTFS parsing)
 - SQLAlchemy 2.0
 - Alembic
 - GitHub Actions (CI)
 - Docker
-
-## Running Locally
-
-1. Clone the repository:
-```bash
- git clone https://github.com/grzechuzz/KRK_TRANSIT.git
- cd KRK_TRANSIT
-```
-
-2. Create the required files:
-```bash
-./scripts/local.sh bootstrap
-```
-   
-3. Start the containers:
-```bash
-./scripts/local.sh up
-```
-
-4. Open the API documentation:
- ```bash
- http://localhost:8000/docs
- ```
-
-## Tests & Linting
-
-```bash
-pip install -e ".[dev,all]"
-
-pytest                  # unit tests
-ruff check .            # linting
-ruff format --check .   # formatting
-mypy .                  # type checking
-```
-
-CI runs everything on every push to main.
