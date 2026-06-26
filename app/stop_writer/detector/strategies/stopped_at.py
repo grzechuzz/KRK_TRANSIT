@@ -2,11 +2,11 @@ from app.shared.models.enums import DetectionMethod, VehicleStatus
 from app.shared.models.events import StopEvent
 from app.stop_writer.detector.event_factory import EventFactory
 from app.stop_writer.detector.strategies.base import DetectionContext
-from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
+from app.stop_writer.repositories.sequence_state import SequenceStateReader
 
 
 class StoppedAtStrategy:
-    def __init__(self, factory: EventFactory, saved_seqs: SavedSequencesRepository):
+    def __init__(self, factory: EventFactory, saved_seqs: SequenceStateReader):
         self._factory = factory
         self._saved_seqs = saved_seqs
 

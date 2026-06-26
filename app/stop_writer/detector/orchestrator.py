@@ -16,6 +16,7 @@ from app.stop_writer.detector.strategies.stopped_at import StoppedAtStrategy
 from app.stop_writer.detector.strategies.trip_completion import TripFinalizer
 from app.stop_writer.detector.validation import EventValidator
 from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
+from app.stop_writer.repositories.sequence_state import PendingSequenceState
 from app.stop_writer.repositories.vehicle_state import VehicleStateRepository
 
 
@@ -29,17 +30,16 @@ class StopEventDetector:
     ):
         self._vehicle_state = redis_vehicle_state
         self._trip_updates = redis_trip_updates
-        self._saved_seqs = redis_saved_seqs
+        self._sequence_state = PendingSequenceState(redis_saved_seqs)
 
         gtfs_cache = GtfsCache(session)
         factory = EventFactory(gtfs_cache)
 
         self._strategies: list[DetectionStrategy] = [
-            StoppedAtStrategy(factory, redis_saved_seqs),
-            SeqJumpStrategy(factory, gtfs_cache, redis_saved_seqs, redis_trip_updates),
+            StoppedAtStrategy(factory, self._sequence_state),
+            SeqJumpStrategy(factory, gtfs_cache, self._sequence_state, redis_trip_updates),
         ]
-        self._finalizer = TripFinalizer(factory, gtfs_cache, redis_saved_seqs, redis_trip_updates)
-        self._validator = EventValidator(redis_saved_seqs)
+        self._finalizer = TripFinalizer(factory, gtfs_cache, self._sequence_state, redis_trip_updates)
         self._gtfs_cache = gtfs_cache
 
     def process_update(self, vp: VehiclePosition) -> list[StopEvent]:
@@ -53,18 +53,18 @@ class StopEventDetector:
         completion_events: list[StopEvent] = []
         if prev_state and prev_state.trip_id != vp.trip_id:
             raw_events = self._finalizer.finalize(prev_state)
-            completion_events = self._persist_events(raw_events, prev_state.agency, prev_state.trip_id)
+            completion_events = self._validate_events(raw_events, prev_state.agency, prev_state.trip_id)
             self._trip_updates.delete(agency_str, prev_state.trip_id)
             self._vehicle_state.delete(agency_str, prev_state.license_plate)
             prev_state = None
 
         trip = self._gtfs_cache.get_trip(vp.trip_id)
         if not trip:
-            return completion_events
+            return self._stage_pending(completion_events)
 
         stop_time = self._gtfs_cache.get_stop_time(vp.trip_id, vp.stop_sequence)
         if not stop_time:
-            return completion_events
+            return self._stage_pending(completion_events)
 
         service_date = compute_service_date(vp.timestamp, stop_time.arrival_seconds)
 
@@ -83,12 +83,11 @@ class StopEventDetector:
         for strategy in self._strategies:
             detected.extend(strategy.detect(ctx))
 
-        # Validate + persist (single place for all side-effects)
-        detection_events = self._persist_events(detected, agency_str, vp.trip_id, service_date)
+        detection_events = self._validate_events(detected, agency_str, vp.trip_id, service_date)
 
         # In-batch validation when STOPPED_AT + estimated events in same update
         if vp.status == VehicleStatus.STOPPED_AT and len(detection_events) > 1:
-            detection_events = self._validator.validate_in_batch(detection_events)
+            detection_events = EventValidator.validate_in_batch(detection_events)
 
         # Save vehicle state
         new_state = VehicleState(
@@ -100,27 +99,30 @@ class StopEventDetector:
         )
         self._vehicle_state.save(new_state)
 
-        return completion_events + detection_events
+        return self._stage_pending(completion_events + detection_events)
 
-    def _persist_events(
+    def mark_committed(self, events: list[StopEvent]) -> None:
+        self._sequence_state.mark_committed(events)
+
+    def _validate_events(
         self,
         raw_events: list[StopEvent],
         agency_str: str,
         trip_id: str,
         service_date: date | None = None,
     ) -> list[StopEvent]:
+        candidate_state = self._sequence_state.with_candidates()
+        validator = EventValidator(candidate_state)
+
         validated: list[StopEvent] = []
         for event in raw_events:
             sd = service_date or event.service_date
-            if not self._validator.validate_event(event, agency_str, trip_id, sd):
+            if not validator.validate_event(event, agency_str, trip_id, sd):
                 continue
             validated.append(event)
-            self._saved_seqs.mark_saved(
-                agency_str,
-                trip_id,
-                sd,
-                event.stop_sequence,
-                event.delay_seconds,
-                event.event_time,
-            )
+            candidate_state.add_candidate(event)
         return validated
+
+    def _stage_pending(self, events: list[StopEvent]) -> list[StopEvent]:
+        self._sequence_state.add_pending(events)
+        return events
