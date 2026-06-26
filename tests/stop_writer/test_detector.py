@@ -1,11 +1,12 @@
 from datetime import UTC, datetime
 
+from conftest import make_stop_time, make_trip_update_cache, make_vehicle_position, make_vehicle_state
+
 from app.shared.models.enums import Agency, DetectionMethod, VehicleStatus
-
-from conftest import make_trip_update_cache, make_vehicle_position, make_vehicle_state
-
+from app.stop_writer.detector.gtfs_cache import GtfsCache
 
 # STOPPED_AT DETECTION
+
 
 def test_stopped_at_creates_event(detector):
     vp = make_vehicle_position(status=VehicleStatus.STOPPED_AT, stop_sequence=5)
@@ -27,10 +28,19 @@ def test_stopped_at_skips_already_saved(detector, mock_saved_seqs):
     assert len(events) == 0
 
 
-def test_stopped_at_marks_saved(detector, mock_saved_seqs):
+def test_stopped_at_does_not_mark_saved_before_commit(detector, mock_saved_seqs):
     vp = make_vehicle_position(status=VehicleStatus.STOPPED_AT, stop_sequence=5)
 
     detector.process_update(vp)
+
+    mock_saved_seqs.mark_saved.assert_not_called()
+
+
+def test_mark_committed_marks_saved(detector, mock_saved_seqs):
+    vp = make_vehicle_position(status=VehicleStatus.STOPPED_AT, stop_sequence=5)
+
+    events = detector.process_update(vp)
+    detector.mark_committed(events)
 
     mock_saved_seqs.mark_saved.assert_called_once()
 
@@ -53,13 +63,15 @@ def test_incoming_at_no_event(detector):
 
 # SEQ_JUMP detection
 
+
 def test_seq_jump_detects_missed_stops(detector, mock_vehicle_state, mock_trip_updates):
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
 
-    cached_time = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
+    cached_time_3 = datetime(2026, 2, 9, 11, 58, 0, tzinfo=UTC)
+    cached_time_4 = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
     mock_trip_updates.get.return_value = make_trip_update_cache(
         trip_id="trip_1",
-        stops={3: (cached_time, cached_time), 4: (cached_time, cached_time)},
+        stops={3: (cached_time_3, cached_time_3), 4: (cached_time_4, cached_time_4)},
     )
 
     vp = make_vehicle_position(status=VehicleStatus.IN_TRANSIT_TO, stop_sequence=5)
@@ -75,10 +87,11 @@ def test_seq_jump_detects_missed_stops(detector, mock_vehicle_state, mock_trip_u
 def test_seq_jump_skips_saved(detector, mock_vehicle_state, mock_trip_updates, mock_saved_seqs):
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
 
-    cached_time = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
+    cached_time_3 = datetime(2026, 2, 9, 11, 58, 0, tzinfo=UTC)
+    cached_time_4 = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
     mock_trip_updates.get.return_value = make_trip_update_cache(
         trip_id="trip_1",
-        stops={3: (cached_time, cached_time), 4: (cached_time, cached_time)},
+        stops={3: (cached_time_3, cached_time_3), 4: (cached_time_4, cached_time_4)},
     )
     mock_saved_seqs.get_all_sequences.return_value = {3}
 
@@ -123,6 +136,7 @@ def test_no_jump_sequence_decreases(detector, mock_vehicle_state):
 
 
 # Trip completion (TIMEOUT)
+
 
 def test_trip_change_completes_previous(detector, mock_vehicle_state, mock_trip_updates):
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=8)
@@ -196,6 +210,7 @@ def test_trip_completion_cleans_redis(detector, mock_vehicle_state, mock_trip_up
 
 # Edge cases
 
+
 def test_no_stop_sequence_returns_empty(detector):
     vp = make_vehicle_position(stop_sequence=None)
 
@@ -231,10 +246,11 @@ def test_event_has_correct_line_and_agency(detector):
 def test_stopped_at_plus_seq_jump_combined(detector, mock_vehicle_state, mock_trip_updates):
     mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
 
-    cached_time = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
+    cached_time_3 = datetime(2026, 2, 9, 11, 58, 0, tzinfo=UTC)
+    cached_time_4 = datetime(2026, 2, 9, 11, 59, 0, tzinfo=UTC)
     mock_trip_updates.get.return_value = make_trip_update_cache(
         trip_id="trip_1",
-        stops={3: (cached_time, cached_time), 4: (cached_time, cached_time)},
+        stops={3: (cached_time_3, cached_time_3), 4: (cached_time_4, cached_time_4)},
     )
 
     vp = make_vehicle_position(status=VehicleStatus.STOPPED_AT, stop_sequence=5)
@@ -245,3 +261,46 @@ def test_stopped_at_plus_seq_jump_combined(detector, mock_vehicle_state, mock_tr
     assert DetectionMethod.STOPPED_AT in methods
     assert DetectionMethod.SEQ_JUMP in methods
     assert len(events) == 3  # stops 3, 4 (SEQ_JUMP) + stop 5 (STOPPED_AT)
+
+
+def test_candidate_event_is_visible_to_next_event_validation(detector, mock_vehicle_state, mock_trip_updates):
+    mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
+
+    seq3_time = datetime(2026, 2, 9, 12, 5, 0, tzinfo=UTC)
+    seq4_time = datetime(2026, 2, 9, 12, 4, 0, tzinfo=UTC)
+    mock_trip_updates.get.return_value = make_trip_update_cache(
+        trip_id="trip_1",
+        stops={3: (seq3_time, seq3_time), 4: (seq4_time, seq4_time)},
+    )
+
+    vp = make_vehicle_position(status=VehicleStatus.IN_TRANSIT_TO, stop_sequence=5)
+
+    events = detector.process_update(vp)
+
+    assert {event.stop_sequence for event in events} == {3}
+
+
+def test_in_batch_rejected_event_is_not_marked_saved(
+    detector, mocker, mock_vehicle_state, mock_trip_updates, mock_saved_seqs
+):
+    mock_vehicle_state.get.return_value = make_vehicle_state(trip_id="trip_1", stop_sequence=3)
+
+    def stop_time_with_early_seq3(tid, seq):
+        arrival_seconds = 42600 if seq == 3 else 43200
+        return make_stop_time(trip_id=tid, stop_sequence=seq, arrival_seconds=arrival_seconds)
+
+    mocker.patch.object(GtfsCache, "get_stop_time", side_effect=stop_time_with_early_seq3)
+
+    high_delay_before_real_stop = datetime(2026, 2, 9, 11, 58, 0, tzinfo=UTC)
+    mock_trip_updates.get.return_value = make_trip_update_cache(
+        trip_id="trip_1",
+        stops={3: (high_delay_before_real_stop, high_delay_before_real_stop)},
+    )
+
+    vp = make_vehicle_position(status=VehicleStatus.STOPPED_AT, stop_sequence=5)
+
+    events = detector.process_update(vp)
+    detector.mark_committed(events)
+
+    saved_sequences = [call.args[3] for call in mock_saved_seqs.mark_saved.call_args_list]
+    assert saved_sequences == [5]

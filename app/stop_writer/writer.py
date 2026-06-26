@@ -1,5 +1,7 @@
 import logging
-from datetime import UTC, datetime, timedelta
+import time
+from collections.abc import Callable
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
@@ -20,13 +22,15 @@ class BatchWriter:
         session: Session,
         batch_size: int = WRITER_BATCH_SIZE,
         flush_interval: timedelta = WRITER_FLUSH_INTERVAL,
+        on_commit: Callable[[list[StopEvent]], None] | None = None,
     ):
         self._session = session
         self._repo = StopEventRepository(session)
         self._batch_size = batch_size
         self._flush_interval = flush_interval
+        self._on_commit = on_commit
         self._buffer: list[StopEvent] = []
-        self._last_flush = datetime.now(UTC)
+        self._last_flush_monotonic = time.monotonic()
 
     def add_many(self, events: list[StopEvent]) -> None:
         """
@@ -36,6 +40,11 @@ class BatchWriter:
 
         if self._should_flush():
             self.flush()
+
+    def flush_due(self) -> int:
+        if not self._should_flush():
+            return 0
+        return self.flush()
 
     def flush(self) -> int:
         """
@@ -51,9 +60,12 @@ class BatchWriter:
             count = self._repo.insert_batch(self._buffer)
             self._session.commit()
             self._session.expire_all()
+            committed_events = list(self._buffer)
+            if self._on_commit is not None:
+                self._on_commit(committed_events)
             logger.info("Wrote %d stop events", count)
             self._buffer.clear()
-            self._last_flush = datetime.now(UTC)
+            self._last_flush_monotonic = time.monotonic()
             return count
         except Exception as e:
             logger.exception("Failed to write batch: %s", e)
@@ -62,8 +74,10 @@ class BatchWriter:
             raise BatchWriteError("Failed to persist stop event batch") from e
 
     def _should_flush(self) -> bool:
+        if not self._buffer:
+            return False
         if len(self._buffer) >= self._batch_size:
             return True
-        if datetime.now(UTC) - self._last_flush > self._flush_interval:
+        if time.monotonic() - self._last_flush_monotonic > self._flush_interval.total_seconds():
             return True
         return False

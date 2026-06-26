@@ -85,7 +85,7 @@ def run_writer() -> None:
             redis_trip_updates=trip_updates_repo,
             redis_saved_seqs=saved_seqs_repo,
         )
-        writer = BatchWriter(session)
+        writer = BatchWriter(session, on_commit=detector.mark_committed)
 
         try:
             while not shutdown_event.is_set():
@@ -98,6 +98,7 @@ def run_writer() -> None:
                             writer.add_many(events)
                     else:
                         writer.flush()
+                    writer.flush_due()
                 except BatchWriteError:
                     if not _recover_writer(writer):
                         break

@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime
+from typing import Any, cast
 
 import redis
 
@@ -37,7 +38,7 @@ class SavedSequencesRepository:
         key = self._key(agency, trip_id, service_date)
         value = serializer.encode_saved_sequence(SavedSequenceData(delay=delay_seconds, event_time=event_time))
         pipe = self._redis.pipeline(transaction=False)
-        pipe.hset(key, str(stop_sequence), value)  # type: ignore[arg-type]
+        pipe.hset(key, str(stop_sequence), cast(Any, value))
         pipe.expire(key, REDIS_SAVED_SEQS_TTL)
         pipe.execute()
 

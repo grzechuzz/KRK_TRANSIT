@@ -4,13 +4,13 @@ from datetime import date
 from app.shared.models.enums import DetectionMethod
 from app.shared.models.events import StopEvent
 from app.stop_writer.constants import DELAY_DROP_THRESHOLD, MIN_EARLY_DELAY_SECONDS
-from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
+from app.stop_writer.repositories.sequence_state import SequenceStateReader
 
 logger = logging.getLogger(__name__)
 
 
 class EventValidator:
-    def __init__(self, saved_seqs: SavedSequencesRepository):
+    def __init__(self, saved_seqs: SequenceStateReader):
         self._saved_seqs = saved_seqs
 
     @staticmethod

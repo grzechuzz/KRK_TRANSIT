@@ -4,7 +4,7 @@ from app.shared.redis.repositories.trip_updates import TripUpdatesRepository
 from app.stop_writer.detector.event_factory import EventFactory
 from app.stop_writer.detector.gtfs_cache import GtfsCache
 from app.stop_writer.detector.strategies.base import DetectionContext
-from app.stop_writer.repositories.saved_sequences import SavedSequencesRepository
+from app.stop_writer.repositories.sequence_state import SequenceStateReader
 
 
 class SeqJumpStrategy:
@@ -12,7 +12,7 @@ class SeqJumpStrategy:
         self,
         factory: EventFactory,
         gtfs_cache: GtfsCache,
-        saved_seqs: SavedSequencesRepository,
+        saved_seqs: SequenceStateReader,
         trip_updates: TripUpdatesRepository,
     ):
         self._factory = factory
