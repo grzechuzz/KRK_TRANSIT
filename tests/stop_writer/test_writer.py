@@ -62,6 +62,18 @@ def test_flush_commits_session(writer, mock_session):
     mock_session.commit.assert_called_once()
 
 
+def test_flush_calls_on_commit_after_commit(mock_session, mocker):
+    on_commit = mocker.Mock()
+    writer = BatchWriter(mock_session, batch_size=5, flush_interval=timedelta(seconds=10), on_commit=on_commit)
+    event = _make_event()
+
+    writer.add_many([event])
+    writer.flush()
+
+    mock_session.commit.assert_called_once()
+    on_commit.assert_called_once_with([event])
+
+
 def test_flush_clears_buffer(writer):
     writer.add_many([_make_event()])
 
@@ -84,6 +96,17 @@ def test_no_auto_flush_below_batch_size(writer, mock_session):
     writer.add_many(events)
 
     mock_session.commit.assert_not_called()
+
+
+def test_flush_due_flushes_existing_buffer_after_deadline(mock_session, mocker):
+    mocker.patch("app.stop_writer.writer.time.monotonic", side_effect=[0.0, 1.0, 12.0, 12.0])
+    writer = BatchWriter(mock_session, batch_size=5, flush_interval=timedelta(seconds=10))
+
+    writer.add_many([_make_event()])
+
+    mock_session.commit.assert_not_called()
+    assert writer.flush_due() == 1
+    mock_session.commit.assert_called_once()
 
 
 def test_flush_rollback_on_error(writer, mock_session):

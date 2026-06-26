@@ -39,6 +39,7 @@ SERVICE_DATE = date(2026, 2, 9)
 
 # MIN_EARLY_DELAY rule
 
+
 def test_min_delay_rejects_below_threshold():
     mock_saved = MagicMock()
     mock_saved.get_saved_data.return_value = None
@@ -60,6 +61,7 @@ def test_min_delay_allows_seq_1():
 
 
 # DELAY_DROP rule
+
 
 def test_delay_drop_rejects_large_drop():
     mock_saved = MagicMock()
@@ -85,6 +87,7 @@ def test_delay_drop_allows_small_drop():
 
 # MONOTONICITY rule
 
+
 def test_monotonicity_rejects_non_increasing():
     mock_saved = MagicMock()
     prev_time = datetime(2026, 2, 9, 12, 5, 0, tzinfo=UTC)
@@ -109,6 +112,7 @@ def test_monotonicity_allows_increasing():
 
 
 # No previous data
+
 
 def test_validate_event_no_previous_data():
     mock_saved = MagicMock()
