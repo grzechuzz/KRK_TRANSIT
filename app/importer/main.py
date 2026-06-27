@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import shutil
 import signal
@@ -5,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Event
 from typing import Any
+
+import redis
 
 from app.importer.constants import IMPORT_CYCLE_SLEEP
 from app.importer.download import download_gtfs_zip
@@ -44,6 +47,7 @@ def run_import() -> ImportCycleResult:
 
     for feed_config in feed_configs:
         agency_name = feed_config.agency.value
+        zip_path: Path | None = None
 
         try:
             logger.info("Downloading %s from %s", agency_name, feed_config.static_url)
@@ -57,7 +61,6 @@ def run_import() -> ImportCycleResult:
 
                 if current_hash == new_hash:
                     logger.info("Skipping %s - hash unchanged", agency_name)
-                    Path(zip_path).unlink()
                     continue
 
                 archive_dir = get_config().data_dir
@@ -73,8 +76,6 @@ def run_import() -> ImportCycleResult:
                 result.any_changed = True
                 logger.info("Successfully imported %s", agency_name)
 
-            Path(zip_path).unlink()
-
         except Exception as e:
             result.all_ok = False
             logger.exception("Failed to import %s: %s", agency_name, e)
@@ -86,8 +87,26 @@ def run_import() -> ImportCycleResult:
                     "failure_scope": "feed",
                 },
             )
+        finally:
+            if zip_path is not None:
+                with contextlib.suppress(FileNotFoundError):
+                    zip_path.unlink()
 
     return result
+
+
+def _publish_import_result(result: ImportCycleResult, redis_client: redis.Redis) -> None:
+    if result.all_ok:
+        redis_client.set(REDIS_KEY_GTFS_READY, "1")
+        logger.info("GTFS ready signal set")
+    else:
+        logger.warning("Import cycle completed with feed failures")
+
+    if result.any_changed:
+        marker = bump_reload_marker(redis_client)
+        logger.info("GTFS reload marker updated to %s", marker.decode())
+    elif result.all_ok:
+        logger.info("Import cycle completed with no GTFS changes")
 
 
 def main() -> None:
@@ -101,16 +120,12 @@ def main() -> None:
     while not shutdown_event.is_set():
         try:
             result = run_import()
-            if result.all_ok:
+            if result.all_ok or result.any_changed:
                 redis = get_client()
-                redis.set(REDIS_KEY_GTFS_READY, "1")
-                logger.info("GTFS ready signal set")
-                if result.any_changed:
-                    marker = bump_reload_marker(redis)
-                    logger.info("GTFS reload marker updated to %s", marker.decode())
+                _publish_import_result(result, redis)
                 logger.info("Import cycle completed, sleeping for 1 hour")
             else:
-                logger.warning("Import cycle completed with feed failures, skipping GTFS reload marker update")
+                logger.warning("Import cycle completed with feed failures and no GTFS changes")
         except Exception as e:
             logger.exception("Import cycle failed: %s", e)
             capture_exception(
