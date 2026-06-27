@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from sqlalchemy.engine import URL
+
 from app.platform.constants import TIMEZONE
 
 
@@ -22,8 +24,21 @@ class DatabaseConfig:
     password: str
 
     @property
-    def url(self) -> str:
-        return f"postgresql+psycopg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+    def url(self) -> URL:
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        )
+
+    def url_string(self) -> str:
+        return self.url.render_as_string(hide_password=False)
+
+    def alembic_url_string(self) -> str:
+        return self.url_string().replace("%", "%%")
 
 
 @dataclass(frozen=True)
