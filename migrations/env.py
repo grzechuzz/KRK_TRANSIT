@@ -1,11 +1,8 @@
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
-
+from sqlalchemy import engine_from_config, pool
 
 from app.platform.config import get_config
 from app.shared.db import models  # noqa: F401
@@ -15,7 +12,9 @@ from app.shared.db.models import Base
 os.environ.setdefault("REDIS_PASSWORD", "fake_for_migrations")
 os.environ.setdefault("REDIS_HOST", "localhost")
 
-url = get_config().database.url
+database_config = get_config().database
+url = database_config.url_string()
+alembic_url = database_config.alembic_url_string()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -67,7 +66,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    config.set_main_option("sqlalchemy.url", url)
+    config.set_main_option("sqlalchemy.url", alembic_url)
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -75,9 +74,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
