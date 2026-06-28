@@ -214,4 +214,5 @@ data/
 redis/users.acl
 .CLAUDE
 .codex
+AGENTS.md
 docs/
